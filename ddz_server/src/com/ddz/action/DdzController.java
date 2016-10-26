@@ -196,7 +196,11 @@ public class DdzController extends Controller {
 	 */
 	public void selectLand(){
 		//获取用户ID，叫分值
-		//验证用户ID是否为当前
+		//验证用户ID是否为当前行动的用户
+		//记录叫分人和叫分值
+		//如果当前用户叫了3分，则直接开始
+		//如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
+		//通知其他两个人叫牌的结果
 	}
 	/**
 	 * 将poker对象列表转换成pokerId列表
