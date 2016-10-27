@@ -2,7 +2,9 @@ package com.ddz.model;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 桌子*
@@ -24,7 +26,7 @@ public class Table implements Serializable {
 	/**
 	 * 桌上的玩家
 	 */
-	private List<Player> players;
+	private List<Player> players=new ArrayList<Player>();
 	/**
 	 * 弃牌区
 	 */
@@ -41,7 +43,18 @@ public class Table implements Serializable {
 	 * 行动的玩家编号
 	 */
 	private String actionPlayerId;
-
+	/**
+	 * 地主分记录
+	 */
+	private Map<String,Integer> landvs = new HashMap<String,Integer>();
+	/**
+	 * 地主玩家编号
+	 */
+	private String landId ;
+	/**
+	 * 底分
+	 */
+	private Integer initPoints ;
 	/**
 	 * 获取当前桌上的人数
 	 * 
@@ -123,6 +136,30 @@ public class Table implements Serializable {
 
 	public void setActionPlayerId(String actionPlayerId) {
 		this.actionPlayerId = actionPlayerId;
+	}
+
+	public Map<String, Integer> getLandvs() {
+		return landvs;
+	}
+
+	public void setLandvs(Map<String, Integer> landvs) {
+		this.landvs = landvs;
+	}
+
+	public String getLandId() {
+		return landId;
+	}
+
+	public void setLandId(String landId) {
+		this.landId = landId;
+	}
+
+	public Integer getInitPoints() {
+		return initPoints;
+	}
+
+	public void setInitPoints(Integer initPoints) {
+		this.initPoints = initPoints;
 	}
 
 	public void show() {

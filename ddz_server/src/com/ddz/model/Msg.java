@@ -56,7 +56,7 @@ public class Msg implements Serializable {
 				list.add(new Poker(i * 10 + j, i, j, false));
 			}
 		}
-		list.add(new Poker(200, 16, 0, false));//小王
-		list.add(new Poker(300, 17, 1, false));//大王
+		list.add(new Poker(160, 16, 0, false));//小王
+		list.add(new Poker(171, 17, 1, false));//大王
 	}
 }

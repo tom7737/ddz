@@ -1,0 +1,79 @@
+<!DOCTYPE HTML>
+<html
+	class="js canvas canvastext geolocation rgba hsla no-multiplebgs borderimage borderradius boxshadow opacity no-cssanimations csscolumns no-cssgradients no-cssreflections csstransforms no-csstransforms3d no-csstransitions  video audio cufon-active fontface cufon-ready">
+<head>
+<meta charset="utf-8">
+<script language="JavaScript"
+	src="/ddz_server/r/js/jquery-1.11.1.min.js"></script>
+</head>
+<body>
+	上家:
+	<span id="lastUserId"></span>
+	<br /> 下家:
+	<span id="nextUserId"></span>
+	<br />
+	<textarea rows="20" cols="100"></textarea>
+	<br /> 本家：
+	<span id="userId"></span>
+	<br />
+	<div id="pokers"></div>
+	<br>
+	<br>
+	<button id="btn_start" onclick="start();">准备</button>
+	<button id="btn_out" onclick="out();" style="display:none;">退出</button>
+	<script type="text/javascript">
+		var userId = Math.ceil(Math.random() * 100);
+		function start() {
+			$("#btn_start").hide();
+			$("#btn_out").show();
+			var es = new EventSource("ddz/start?userId=" + userId);
+			es.onmessage = function(event) {
+				alert(event.data);
+				// 				document.getElementById('push').innerHTML = event.data;
+			};
+			es.addEventListener('start', function(e) {
+				var d = jQuery.parseJSON(event.data);
+				// 				alert(d);
+				$("#lastUserId").text(d.lastUserId);
+				$("#nextUserId").text(d.nextUserId);
+				$("#userId").text(d.userId);
+				alert(d.pokers);
+				d.pokers.forEach(function(id) {
+				var p = idToPoker(id);
+					$("#pokers").append(
+							'<input type="checkbox" name="pokers" id = "'+id+'">'
+									+ p.color +p.name);
+				});
+			});
+		}
+		function out() {
+			$.ajax({
+				url : "/ddz_server/ddz/outTable?userId=" + userId,
+				type : "post",
+				success : function() {
+					alert("退出");
+					$("#btn_out").hide();
+					$("#btn_start").show();
+				}
+			});
+		}
+		var names = [ "", "", "", "3", "4", "5", "6", "7", "8", "9", "10", "J",
+				"Q", "K", "A", "2", "小王", "大王" ];
+		var colors = [ "黑", "红", "梅", "方" ];
+		function idToPoker(id) {
+			var s = {
+				id : null,
+				name : null,
+				color : null
+			};
+			s.id = id;
+			s.name = names[Math.floor(id/10)];
+			s.color = colors[id%10];
+			return s;
+		}
+// 		var x = idToPoker(31);
+// 		alert(x.color +x.name);
+	</script>
+</body>
+</html>
+
