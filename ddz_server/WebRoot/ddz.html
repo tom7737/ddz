@@ -1,4 +1,4 @@
-<!DOCTYPE HTML>
+﻿<!DOCTYPE HTML>
 <html
 	class="js canvas canvastext geolocation rgba hsla no-multiplebgs borderimage borderradius boxshadow opacity no-cssanimations csscolumns no-cssgradients no-cssreflections csstransforms no-csstransforms3d no-csstransitions  video audio cufon-active fontface cufon-ready">
 <head>
@@ -12,7 +12,7 @@
 	<br /> 下家:
 	<span id="nextUserId"></span>
 	<br />
-	<textarea rows="20" cols="100"></textarea>
+	<textarea rows="20" cols="100" id="msg_text"></textarea>
 	<br /> 本家：
 	<span id="userId"></span>
 	<br />
@@ -21,6 +21,14 @@
 	<br>
 	<button id="btn_start" onclick="start();">准备</button>
 	<button id="btn_out" onclick="out();" style="display:none;">退出</button>
+	<br>
+	<br>
+	<div id="selectLand" style="display:none;">
+		<button  onclick="selectLand(0);">不叫</button>
+		<button  onclick="selectLand(1);">1分</button>
+		<button  onclick="selectLand(2);">2分</button>
+		<button  onclick="selectLand(3);">3分</button>
+	</div>
 	<script type="text/javascript">
 		var userId = Math.ceil(Math.random() * 100);
 		function start() {
@@ -31,30 +39,67 @@
 				alert(event.data);
 				// 				document.getElementById('push').innerHTML = event.data;
 			};
-			es.addEventListener('start', function(e) {
+			es.addEventListener('start', function(event) {//发牌成功后的回调函数
 				var d = jQuery.parseJSON(event.data);
-				// 				alert(d);
+				//三个玩家信息
 				$("#lastUserId").text(d.lastUserId);
 				$("#nextUserId").text(d.nextUserId);
 				$("#userId").text(d.userId);
-				alert(d.pokers);
-				d.pokers.forEach(function(id) {
-				var p = idToPoker(id);
-					$("#pokers").append(
-							'<input type="checkbox" name="pokers" id = "'+id+'">'
-									+ p.color +p.name);
-				});
+				//alert(d.pokers);
+				//显示牌
+				showPokers(d.pokers);
+				//显示信息
+				msg("发牌完成");
+				msg("下一个行动玩家是："+d.actionPlayerId);
+				if(d.actionPlayerId == d.userId){//如果先手玩家是本人，则显示叫地主按钮
+					$("#selectLand").show();
+				}
+			});
+			es.addEventListener('selectLand', function(event) {//叫地主后的回调函数
+				var d = jQuery.parseJSON(event.data);
+				// 显示信息
+				msg("叫地主：玩家"+d.callPalyer+"叫了"+d.landv+"分");
+				msg("下一个行动玩家是："+d.actionPlayerId);
+				if(d.actionPlayerId == userId){//如果先手玩家是本人，则显示叫地主按钮
+					$("#selectLand").show();
+				}
 			});
 		}
+		
+		//叫地主
+		function selectLand(v){
+		$.ajax({
+				url : "/ddz_server/ddz/selectLand?userId=" + userId+"&landv="+v,
+				type : "post",
+				success : function() {
+					$("#selectLand").hide();
+				}
+			});
+		}
+		//退出
 		function out() {
 			$.ajax({
 				url : "/ddz_server/ddz/outTable?userId=" + userId,
 				type : "post",
 				success : function() {
-					alert("退出");
+					msg("退出");
 					$("#btn_out").hide();
 					$("#btn_start").show();
 				}
+			});
+		}
+// 		显示信息
+		function msg(str){
+			$("#msg_text").val($("#msg_text").val()+str+"\n");
+		}
+		//展示手牌
+		function showPokers(pokers){
+			$("#pokers").html("");
+			pokers.forEach(function(id) {
+			var p = idToPoker(id);
+			$("#pokers").append(
+						'<input type="checkbox" name="pokers" id = "'+id+'">'
+								+ p.color +p.name);
 			});
 		}
 		var names = [ "", "", "", "3", "4", "5", "6", "7", "8", "9", "10", "J",

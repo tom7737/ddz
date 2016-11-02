@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * 桌子*
@@ -26,17 +27,17 @@ public class Table implements Serializable {
 	/**
 	 * 桌上的玩家
 	 */
-	private List<Player> players=new ArrayList<Player>();
+	private List<Player> players = new ArrayList<Player>();
 	/**
 	 * 弃牌区
 	 */
-	private List<Poker> folds =new ArrayList<Poker>();
+	private List<Poker> folds = new ArrayList<Poker>();
 	/**
 	 * 地主牌
 	 */
 	private List<Poker> lands;
 	/**
-	 * 桌子状态 0空闲1游戏中
+	 * 桌子状态 0空闲1叫地主中2游戏中
 	 */
 	private int status = 0;
 	/**
@@ -46,15 +47,20 @@ public class Table implements Serializable {
 	/**
 	 * 地主分记录
 	 */
-	private Map<String,Integer> landvs = new HashMap<String,Integer>();
+	private Map<String, Integer> landvs = new HashMap<String, Integer>();
+	/**
+	 * 当前叫分人
+	 */
+	private String callPalyer;
 	/**
 	 * 地主玩家编号
 	 */
-	private String landId ;
+	private String landId;
 	/**
 	 * 底分
 	 */
-	private Integer initPoints ;
+	private Integer initPoints;
+
 	/**
 	 * 获取当前桌上的人数
 	 * 
@@ -129,7 +135,6 @@ public class Table implements Serializable {
 		super();
 	}
 
-
 	public String getActionPlayerId() {
 		return actionPlayerId;
 	}
@@ -159,7 +164,17 @@ public class Table implements Serializable {
 	}
 
 	public void setInitPoints(Integer initPoints) {
-		this.initPoints = initPoints;
+		if (this.initPoints == null || this.initPoints < initPoints) {
+			this.initPoints = initPoints;
+		}
+	}
+
+	public String getCallPalyer() {
+		return callPalyer;
+	}
+
+	public void setCallPalyer(String callPalyer) {
+		this.callPalyer = callPalyer;
 	}
 
 	public void show() {
@@ -176,10 +191,37 @@ public class Table implements Serializable {
 		for (Poker poker : lands) {
 			System.out.print(poker.show());
 		}
+		System.out.println();
 		System.out.println("弃牌：");
 		for (Poker poker : folds) {
 			System.out.print(poker.show());
 		}
+	}
+
+	/**
+	 * 
+	 * 当前行动人改为下家
+	 */
+	public void nextActionPlayerId() {
+		for (int i = 0; i < players.size(); i++) {
+			if (players.get(i).getName().equals(this.actionPlayerId)) {
+				if (i == players.size() - 1)
+					this.actionPlayerId = players.get(0).getName();
+				else
+					this.actionPlayerId = players.get(i + 1).getName();
+				break;
+			}
+		}
+
+	}
+
+	/**
+	 * 随机选择一个人为当前行动人
+	 */
+	public void randomActionPlayerId() {
+		Random r = new Random();
+		int nextInt = r.nextInt(3);
+		this.actionPlayerId = players.get(nextInt).getName();
 	}
 
 }

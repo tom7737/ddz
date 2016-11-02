@@ -132,10 +132,9 @@ public class DdzController extends Controller {
 			table.setLands(lands);
 			// table.show();
 			// 随机一个用户先叫牌
-			Random r = new Random();
-			int nextInt = r.nextInt(3);
-			String actionPlayerId = players.get(nextInt).getName();
-			table.setActionPlayerId(actionPlayerId);
+			table.randomActionPlayerId();
+			//状态改为叫地主中
+			table.setStatus(1);
 			// 通知前端
 			for (Player player : players) {
 				startMsg.put(player.getName(), tableKey);
@@ -210,15 +209,32 @@ public class DdzController extends Controller {
 				re.set("actionPlayerId", table.getActionPlayerId());
 				re.set("userId", userId);
 				String json = JsonKit.toJson(re);
-				// out.println("event：start");
-				// out.println("data：" + json);
-				// out.println();
 				out.println("event:start");
 				out.flush();
 				out.println("data: " + json + "\n");
 				out.flush();
 			}
-			// FIXME 推送叫地主接口的消息
+			// 推送叫地主接口的消息
+			if (selectLandMsg.containsKey(userId)) {
+				// 获取tableKey 并从MAP中删除
+				String tableKey = selectLandMsg.get(userId);
+				selectLandMsg.remove(userId);
+				Table table = tables.get(tableKey);
+				Record re = new Record();
+				re.set("actionPlayerId", table.getActionPlayerId());
+				re.set("callPalyer", table.getCallPalyer());
+				re.set("landv", table.getLandvs().get(table.getCallPalyer()));
+				String json = JsonKit.toJson(re);
+				out.println("event:selectLand");
+				out.flush();
+				out.println("data: " + json + "\n");
+				out.flush();
+				
+				// TODO 开始游戏
+				//判断桌子的状态是否为游戏中
+				
+				//将地主牌发给地主
+			}
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -226,10 +242,23 @@ public class DdzController extends Controller {
 			}
 		}
 	}
-public static void main(String[] args) {
-	System.out.print("event：start\n");
-	System.out.print("data：  json \n\n");
-}
+
+	public static void main(String[] args) {
+		byte[] b = {65,66,67};
+		for (int i = 0; i < b.length; i++) {
+			System.out.print(b[i]);
+		}
+		String s = new String(b);
+		System.out.println(s);
+		byte[] bytes = s.getBytes();
+		for (int i = 0; i < bytes.length; i++) {
+			
+			System.out.print(bytes[i]);
+		}
+		//		System.out.print("event：start\n");
+		//		System.out.print("data：  json \n\n");
+	}
+
 	/**
 	 * 叫地主的消息列表
 	 */
@@ -256,27 +285,36 @@ public static void main(String[] args) {
 		// 记录叫分人和叫分值
 		Map<String, Integer> landvs = table.getLandvs();
 		landvs.put(userId, landv);
-		Integer initPoints = table.getInitPoints();
-		if (initPoints == null || initPoints < landv) {
-			table.setInitPoints(landv);
-		}
+		table.setCallPalyer(userId);
+		table.setInitPoints(landv);
 		// 如果当前用户叫了3分，则直接开始
-		if (table.getInitPoints() == 3) {
-			// TODO 开始游戏
-			return;
-		}
-		// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
-		if (table.getLandvs().size() == 3) {
-			if (table.getInitPoints() > 0) {
-				// TODO 开始游戏
-				return;
+		if (table.getInitPoints() == 3) {// 结束叫牌（开始游戏）
+			//状态改为游戏中
+			table.setStatus(1);
+			//当前用户成为地主
+			table.setLandId(userId);
+			//当前用户（地主）成为当前行动人
+			table.setActionPlayerId(userId);
+		}else if (table.getLandvs().size() == 3) {// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
+			if (table.getInitPoints() > 0) {// 结束叫牌（开始游戏）
+				//状态改为游戏中
+				table.setStatus(1);
+				//当前用户成为地主
+				table.setLandId(userId);
+				//当前用户（地主）成为当前行动人
+				table.setActionPlayerId(userId);
 			} else {
 				// TODO 重新发牌
-				return;
 			}
+		}else{
+			// 行动人按顺序延后
+			table.nextActionPlayerId();
 		}
-		// 通知其他两个人叫牌的结果
-		selectLandMsg.put(userId, tableKey);
+		// 通知前端
+		for (Player player : table.getPlayers()) {
+			selectLandMsg.put(player.getName(), tableKey);
+		}
+		renderNull();
 	}
 
 	/**
@@ -308,5 +346,4 @@ public static void main(String[] args) {
 		startMsg.put(userId, "out");
 		renderNull();
 	}
-
 }
