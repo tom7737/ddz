@@ -3,6 +3,8 @@ package com.ddz.action;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -11,6 +13,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletResponse;
@@ -102,44 +105,52 @@ public class DdzController extends Controller {
 	 * @date 2016-10-22
 	 */
 	private class HandlerThread implements Runnable {
-
 		@Override
 		public void run() {
+			System.out.println(tableKey);
 			Table table = tables.get(tableKey);
-			List<Poker> pokers = new Msg().getList();
-			List<Player> players = table.getPlayers();
-			// 发牌
-			// 打乱顺序
-			Collections.shuffle(pokers);
-			Iterator<Poker> iterator = pokers.iterator();
-			for (Player player : players) {
-				List<Poker> ppk = new ArrayList<Poker>();
-				for (int i = 0; i < 17; i++) {
-					ppk.add(iterator.next());
-				}
-				// 根据name排序
-				Collections.sort(ppk, new Comparator<Poker>() {
-					public int compare(Poker o1, Poker o2) {
-						return o2.getName() - o1.getName();
-					}
-				});
-				player.setPokers(ppk);
-			}
-			List<Poker> lands = new ArrayList<Poker>();
-			lands.add(iterator.next());
-			lands.add(iterator.next());
-			lands.add(iterator.next());
-			table.setLands(lands);
-			// table.show();
-			// 随机一个用户先叫牌
-			table.randomActionPlayerId();
-			//状态改为叫地主中
-			table.setStatus(1);
+			List<Player> players = randomPoker(table);
 			// 通知前端
 			for (Player player : players) {
 				startMsg.put(player.getName(), tableKey);
 			}
 		}
+	}
+
+	private List<Player> randomPoker(Table table) {
+		List<Poker> pokers = new Msg().getList();
+		List<Player> players = table.getPlayers();
+		// 发牌
+		// 打乱顺序
+		Collections.shuffle(pokers);
+		Iterator<Poker> iterator = pokers.iterator();
+		for (Player player : players) {
+			List<Poker> ppk = new ArrayList<Poker>();
+			for (int i = 0; i < 17; i++) {
+				ppk.add(iterator.next());
+			}
+			// 根据name排序
+			Collections.sort(ppk, new Comparator<Poker>() {
+				public int compare(Poker o1, Poker o2) {
+					return o2.getName() - o1.getName();
+				}
+			});
+			player.setPokers(ppk);
+		}
+		List<Poker> lands = new ArrayList<Poker>();
+		lands.add(iterator.next());
+		lands.add(iterator.next());
+		lands.add(iterator.next());
+		table.setLands(lands);
+		// table.show();
+		// 随机一个用户先叫牌
+		table.randomActionPlayerId();
+		// 初始叫牌记录和当前叫牌人
+		table.setLandvs(new HashMap<String, Integer>());
+		table.setCallPalyer(null);
+		// 状态改为叫地主中
+		table.setStatus(1);
+		return players;
 	}
 
 	/**
@@ -154,7 +165,7 @@ public class DdzController extends Controller {
 		String userId = this.getPara("userId");
 		if (userId == null)
 			userId = UUID.randomUUID().toString();
-		if (userIds.contains(userId)/* ||user_table.containsKey(userId) */) {
+		if (userIds.contains(userId) || user_table.containsKey(userId)) {
 			renderNull();
 			return;
 		}
@@ -221,19 +232,45 @@ public class DdzController extends Controller {
 				selectLandMsg.remove(userId);
 				Table table = tables.get(tableKey);
 				Record re = new Record();
-				re.set("actionPlayerId", table.getActionPlayerId());
-				re.set("callPalyer", table.getCallPalyer());
-				re.set("landv", table.getLandvs().get(table.getCallPalyer()));
+				re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
+				re.set("callPalyer", table.getCallPalyer());// 当前叫地主的玩家ID
+				re.set("landv", table.getLandvs().get(table.getCallPalyer()));// 叫分值
+				re.set("initPoints", table.getInitPoints());// 低分
+				re.set("status", table.getStatus());// 状态
+				// 开始游戏
+				// 判断桌子的状态是否为游戏中,显示地主牌和谁是地主
+				if (table.getStatus() == 2) {
+					re.set("lands", pokerFormat(table.getLands()));// 地主牌
+					re.set("landId", table.getLandId());// 地主ID
+				}
 				String json = JsonKit.toJson(re);
 				out.println("event:selectLand");
 				out.flush();
 				out.println("data: " + json + "\n");
 				out.flush();
-				
-				// TODO 开始游戏
-				//判断桌子的状态是否为游戏中
-				
-				//将地主牌发给地主
+
+			}
+			// 推送出牌接口的消息
+			if (outPokerMsg.containsKey(userId)) {
+				// 获取tableKey 并从MAP中删除
+				String tableKey = outPokerMsg.get(userId);
+				outPokerMsg.remove(userId);
+				Table table = tables.get(tableKey);
+				List<Map<String, Integer[]>> outPokerLog = table
+						.getOutPokerLog();
+				Map<String, Integer[]> map = outPokerLog
+						.get(outPokerLog.size() - 1);
+				Record re = new Record();
+				String outPokerMan = map.keySet().iterator().next();
+				re.set("outPokerMan", outPokerMan);// 出牌人
+				re.set("outPoker", map.get(outPokerMan));// 出的牌
+				re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
+				String json = JsonKit.toJson(re);
+				out.println("event:outPoker");
+				out.flush();
+				out.println("data: " + json + "\n");
+				out.flush();
+
 			}
 			try {
 				Thread.sleep(1000);
@@ -244,19 +281,42 @@ public class DdzController extends Controller {
 	}
 
 	public static void main(String[] args) {
-		byte[] b = {65,66,67};
-		for (int i = 0; i < b.length; i++) {
-			System.out.print(b[i]);
+		// String[] ints = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
+		// };
+		List<String> asList = new ArrayList<String>();
+		asList.add("1");
+		asList.add("2");
+		asList.add("3");
+		asList.add("4");
+		asList.add("5");
+		asList.add("6");
+		asList.add("7");
+		asList.add("8");
+		asList.add("9");
+		asList.add("10");
+		List<String> delList = new ArrayList<String>();
+		for (String integer : asList) {
+			if (Integer.valueOf(integer) % 3 == 0) {
+				delList.add(integer);
+			}
 		}
-		String s = new String(b);
-		System.out.println(s);
-		byte[] bytes = s.getBytes();
-		for (int i = 0; i < bytes.length; i++) {
-			
-			System.out.print(bytes[i]);
+		asList.removeAll(delList);
+		for (String string : asList) {
+			System.out.println(string);
 		}
-		//		System.out.print("event：start\n");
-		//		System.out.print("data：  json \n\n");
+		// byte[] b = { 65, 66, 67 };
+		// for (int i = 0; i < b.length; i++) {
+		// System.out.print(b[i]);
+		// }
+		// String s = new String(b);
+		// System.out.println(s);
+		// byte[] bytes = s.getBytes();
+		// for (int i = 0; i < bytes.length; i++) {
+		//
+		// System.out.print(bytes[i]);
+		// }
+		// System.out.print("event：start\n");
+		// System.out.print("data：  json \n\n");
 	}
 
 	/**
@@ -289,32 +349,91 @@ public class DdzController extends Controller {
 		table.setInitPoints(landv);
 		// 如果当前用户叫了3分，则直接开始
 		if (table.getInitPoints() == 3) {// 结束叫牌（开始游戏）
-			//状态改为游戏中
-			table.setStatus(1);
-			//当前用户成为地主
-			table.setLandId(userId);
-			//当前用户（地主）成为当前行动人
-			table.setActionPlayerId(userId);
-		}else if (table.getLandvs().size() == 3) {// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
+			startGame(table);
+		} else if (table.getLandvs().size() == 3) {// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
 			if (table.getInitPoints() > 0) {// 结束叫牌（开始游戏）
-				//状态改为游戏中
-				table.setStatus(1);
-				//当前用户成为地主
-				table.setLandId(userId);
-				//当前用户（地主）成为当前行动人
-				table.setActionPlayerId(userId);
+				startGame(table);
 			} else {
-				// TODO 重新发牌
+				// 行动玩家置空
+				table.setActionPlayerId(null);
+				// 设置牌桌编号
+				this.tableKey = user_table.get(userId);
+				// 重新发牌
+				Thread handler = new Thread(new AgainRandomPokerThread());
+				handler.start();
 			}
-		}else{
+		} else {
 			// 行动人按顺序延后
 			table.nextActionPlayerId();
 		}
+		System.out.println("通知前端");
 		// 通知前端
 		for (Player player : table.getPlayers()) {
 			selectLandMsg.put(player.getName(), tableKey);
 		}
 		renderNull();
+	}
+
+	/**
+	 * 开始打牌的准备工作
+	 * 
+	 * @param table
+	 * @param landId
+	 */
+	private void startGame(Table table) {
+		// 叫分最高的成为地主
+		String landId = null;
+		Set<String> landvs_userIds = table.getLandvs().keySet();
+		for (String landvs_userId : landvs_userIds) {
+			if (table.getInitPoints() == table.getLandvs().get(landvs_userId)) {
+				landId = landvs_userId;
+				break;
+			}
+		}
+		// 状态改为游戏中
+		table.setStatus(2);
+		// 设置地主ID
+		table.setLandId(landId);
+		// 地主成为当前行动人
+		table.setActionPlayerId(landId);
+		// 地主牌发给地主
+		List<Poker> lands = table.getLands();
+		List<Player> players = table.getPlayers();
+		for (Player player : players) {
+			if (player.getName().equals(landId)) {
+				player.setIsland(true);
+				//将地主牌发给地主
+				player.getPokers().addAll(lands);
+				// 地主手牌排序
+				Collections.sort(player.getPokers(), new Comparator<Poker>() {
+					public int compare(Poker o1, Poker o2) {
+						return o2.getName() - o1.getName();
+					}
+				});
+			}else{
+				player.setIsland(false);
+			}
+		}
+	}
+
+	/**
+	 * 处理重新发牌工作，主要是等叫地主信息发出后再重新发牌
+	 * 
+	 * @author tom
+	 * @date 2016-11-3
+	 */
+	private class AgainRandomPokerThread implements Runnable {
+		@Override
+		public void run() {
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			System.out.print("重新发牌");
+			Thread handler = new Thread(new HandlerThread());
+			handler.start();
+		}
 	}
 
 	/**
@@ -329,6 +448,86 @@ public class DdzController extends Controller {
 			rv[i] = pokers.get(i).getId();
 		}
 		return rv;
+	}
+
+	/**
+	 * 将pokerId列表转换成poker对象列表
+	 * 
+	 * @param pokers
+	 * @return
+	 */
+	private List<Poker> pokerFormat2(Integer[] pokerIds) {
+		List<Poker> returnv = new ArrayList<Poker>();
+		for (Integer pokerid : pokerIds) {
+			returnv.add(new Poker(pokerid, pokerid / 10, pokerid % 10, false));
+		}
+		return returnv;
+	}
+
+	/**
+	 * 出牌的消息列表
+	 */
+	private static Map<String, String> outPokerMsg = new HashMap<String, String>();
+
+	/**
+	 * 出牌
+	 */
+	public void outPoker() {
+		String userId = this.getPara("userId");
+		String[] pokerIds_temp = this.getPara("pokers").split(",");
+		Integer[] pokerIds = new Integer[pokerIds_temp.length];
+		for (int i = 0; i < pokerIds_temp.length; i++) {
+			pokerIds[i] = Integer.valueOf(pokerIds_temp[i]);
+		}
+		List<Integer> l_pokerIds = Arrays.asList(pokerIds);
+		// List<Poker> pokers = pokerFormat2(pokerIds);
+		// System.out.println(pokers);
+		// FIXME 判断是否为当前行动人
+		// FIXME 判断出牌是否符合规则
+		// 将出的牌从手牌中转移到弃牌区
+		String tableKey = user_table.get(userId);
+		Table table = tables.get(tableKey);
+		List<Player> players = table.getPlayers();
+		for (Player player : players) {
+			if (player.getName().equals(userId)) {
+				List<Poker> pokers = player.getPokers();
+				List<Poker> delpokers = new ArrayList<Poker>();// 需要删除的手牌
+				for (Poker poker : pokers) {
+					if (l_pokerIds.contains(poker.getId())) {
+						delpokers.add(poker);
+					}
+				}
+				table.getFolds().addAll(delpokers);// 将要出的牌加入弃牌区
+				pokers.removeAll(delpokers);// 将要出的牌从手牌中删除
+				break;
+			}
+		}
+		players.get(0).getPokers();
+		// 记录出牌结果
+		List<Map<String, Integer[]>> outPokerLog = table.getOutPokerLog();
+		Map<String, Integer[]> userId_outPoker = new HashMap<String, Integer[]>();
+		userId_outPoker.put(userId, pokerIds);
+		outPokerLog.add(userId_outPoker);
+		// FIXME 判断是否已将牌出完，出完则结束游戏
+		for (Player player : players) {
+			if (player.getName().equals(userId)&&player.getPokers().size()==0) {
+				//牌桌状态改为空闲
+				table.setStatus(0);
+				//记录游戏结果
+				// FIXME 1
+				table.setResults(results);
+				//另起线程通知前端
+				break;
+			}
+		}
+		// 顺延行动人
+		table.nextActionPlayerId();
+		System.out.println("当前牌况");
+		// 通知前端
+		for (Player player : table.getPlayers()) {
+			outPokerMsg.put(player.getName(), tableKey);
+		}
+		renderNull();
 	}
 
 	/**

@@ -47,7 +47,7 @@ public class Table implements Serializable {
 	/**
 	 * 地主分记录
 	 */
-	private Map<String, Integer> landvs = new HashMap<String, Integer>();
+	private Map<String, Integer> landvs;// = new HashMap<String, Integer>();
 	/**
 	 * 当前叫分人
 	 */
@@ -60,6 +60,23 @@ public class Table implements Serializable {
 	 * 底分
 	 */
 	private Integer initPoints;
+	/**
+	 * 出牌记录
+	 */
+	private List<Map<String,Integer[]>> outPokerLog = new ArrayList<Map<String,Integer[]>>();
+
+	/**
+	 * 游戏结果0地主胜利1农民胜利
+	 */
+	private Integer results;
+	
+	public Integer getResults() {
+		return results;
+	}
+
+	public void setResults(Integer results) {
+		this.results = results;
+	}
 
 	/**
 	 * 获取当前桌上的人数
@@ -175,6 +192,14 @@ public class Table implements Serializable {
 
 	public void setCallPalyer(String callPalyer) {
 		this.callPalyer = callPalyer;
+	}
+
+	public List<Map<String, Integer[]>> getOutPokerLog() {
+		return outPokerLog;
+	}
+
+	public void setOutPokerLog(List<Map<String, Integer[]>> outPokerLog) {
+		this.outPokerLog = outPokerLog;
 	}
 
 	public void show() {
