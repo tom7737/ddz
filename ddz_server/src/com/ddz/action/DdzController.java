@@ -551,9 +551,25 @@ public class DdzController extends Controller {
 		String userId = this.getPara("userId");
 		String tableKey = user_table.get(userId);
 		Table table = tables.get(tableKey);
-		//FIXME 判断是否必须得出牌（上家下家都不出则必须出牌）
-		// 记录出牌结果
 		List<Map<String, Integer[]>> outPokerLog = table.getOutPokerLog();
+		// 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
+		if (outPokerLog == null || outPokerLog.size() == 0) {
+			renderText("你必须出牌");
+			return;
+		} else if (outPokerLog.size() > 2) {
+			Map<String, Integer[]> map = outPokerLog
+					.get(outPokerLog.size() - 1);
+			Integer[] integers = map.get(map.keySet().iterator().next());
+			Map<String, Integer[]> map2 = outPokerLog
+					.get(outPokerLog.size() - 2);
+			Integer[] integers2 = map2.get(map2.keySet().iterator().next());
+			if (integers == null && integers2 == null) {
+				renderText("你必须出牌");
+				return;
+			}
+		}
+
+		// 记录出牌结果
 		Map<String, Integer[]> userId_outPoker = new HashMap<String, Integer[]>();
 		userId_outPoker.put(userId, null);
 		outPokerLog.add(userId_outPoker);
