@@ -37,7 +37,11 @@
 		var userId = Math.ceil(Math.random() * 100);
 		var lastUserId;//上家ID
 		var nextUserId;//下家ID
+		var userRole;//本家角色
+		var lastUserRole;//上家角色
+		var nextUserRole;//下家角色
 		// 		var pokers;//手牌
+		var notOutCount = 0;//记录不出的次数，2次不出后，则下家必须出牌
 		function start() {
 			$("#btn_start").hide();
 			$("#btn_out").show();
@@ -73,7 +77,7 @@
 					msg("叫地主：玩家" + d.callPalyer + "叫了" + d.landv + "分");
 					msg("下一个行动玩家是：" + d.actionPlayerId);
 					if (d.actionPlayerId == userId) {//如果先手玩家是本人，则显示叫地主按钮
-						if(d.initPoints==null)
+						if (d.initPoints == null)
 							showSelectLand(0);
 						else
 							showSelectLand(d.initPoints);
@@ -89,14 +93,23 @@
 						$("#userId").append("地主");
 						$("#lastUserId").append("农民");
 						$("#nextUserId").append("农民");
+						userRole = 0;
+						lastUserRole = 1;
+						nextUserRole = 1;
 					} else if (d.landId == lastUserId) {
 						$("#userId").append("农民");
 						$("#lastUserId").append("地主");
 						$("#nextUserId").append("农民");
+						userRole = 1;
+						lastUserRole = 0;
+						nextUserRole = 1;
 					} else if (d.landId == nextUserId) {
 						$("#userId").append("农民");
 						$("#lastUserId").append("农民");
 						$("#nextUserId").append("地主");
+						userRole = 1;
+						lastUserRole = 1;
+						nextUserRole = 0;
 					}
 					if (d.actionPlayerId == userId) {//如果先手玩家是本人，则显示出牌按钮，附加地主牌
 						appendPokers(d.lands);
@@ -107,13 +120,31 @@
 			es.addEventListener('outPoker', function(event) {//出牌后的回调函数
 				var d = jQuery.parseJSON(event.data);
 				// 显示信息
-				msg("出牌："+d.outPokerMan+"出了"+d.outPoker);
-				msg("下一个行动玩家是：" + d.actionPlayerId);
-				//如果行动人为本人，则显示出牌按钮 
-				if (d.actionPlayerId == userId) {//如果先手玩家是本人，则显示出牌按钮，附加地主牌
-						showOutDiv();
+				if (d.outPoker == null||""==d.outPoker){
+					msg("出牌：" + d.outPokerMan + "不出");
+					notOutCount++;
+				}else{
+					msg("出牌：" + d.outPokerMan + "出了" + d.outPoker);
+					notOutCount = 0;
+				}
+				if (d.status == 2) {
+					msg("下一个行动玩家是：" + d.actionPlayerId);
+					//如果行动人为本人，则显示出牌按钮 
+					if (d.actionPlayerId == userId) {//如果先手玩家是本人，则显示出牌按钮，附加地主牌
+						if(notOutCount<2){
+							showOutDiv();
+						}else{
+							showOutDiv2();
+						}
 					}
-				
+				}
+			});
+			es.addEventListener('gameOver', function(event) {//出牌后的回调函数
+				var d = jQuery.parseJSON(event.data);
+				// 显示信息
+				msg("游戏结束：" + (d.result == 0 ? "地主胜利" : "农民胜利"));
+				msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
+						+ (userRole == d.result ? "赢了" : "输了"));
 			});
 		}
 		//显示叫分按钮
@@ -123,7 +154,7 @@
 			$("#btn_selectLand1").hide();
 			$("#btn_selectLand2").hide();
 			$("#btn_selectLand3").hide();
-			if(v>=3||v<0)
+			if (v >= 3 || v < 0)
 				return;
 			$("#selectLand").show();
 			$("#btn_selectLand0").show();
@@ -148,15 +179,14 @@
 			$("#btn_not_out_poker").hide();
 		}
 		//出牌
-		function outPoker(){
+		function outPoker() {
 			var pokers = [];
 			//获取原有手牌
 			$('input[name="pokers"]:checked').each(function() {
 				pokers.push($(this).val());//将选中的值添加到数组chk_value中      
-				
-				
+
 			});
-			if(pokers.length<=0){
+			if (pokers.length <= 0) {
 				alert("请选择要出的牌");
 				return;
 			}
@@ -164,16 +194,30 @@
 				url : "/ddz_server/ddz/outPoker?userId=" + userId + "&pokers="
 						+ pokers,
 				type : "post",
-				success : function() {
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
 					$("#out_div").hide();
-					for (var i = 0; i < pokers.length; i++) {
-						$("#poker"+pokers[i]+"").remove();// 删除手牌中出掉的牌
+					for ( var i = 0; i < pokers.length; i++) {
+						$("#poker" + pokers[i] + "").remove();// 删除手牌中出掉的牌
 					}
 				}
 			});
 		}
-		function notOutPoker(){
-		
+		function notOutPoker() {
+			$.ajax({
+				url : "/ddz_server/ddz/notOutPoker?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+					$("#out_div").hide();
+				}
+			});
 		}
 		//叫地主
 		function selectLand(v) {
@@ -205,12 +249,14 @@
 		//展示手牌
 		function showPokers(pokers) {
 			$("#pokers").html("");
-			pokers.forEach(function(id) {
-				var p = idToPoker(id);
-				$("#pokers").append(
-						'<span id = "poker'+id+'"><input type="checkbox" name="pokers" value = "'+id+'">'
-								+ p.color + p.name+'</span>');
-			});
+			pokers
+					.forEach(function(id) {
+						var p = idToPoker(id);
+						$("#pokers")
+								.append(
+										'<span id = "poker'+id+'"><input type="checkbox" name="pokers" value = "'+id+'">'
+												+ p.color + p.name + '</span>');
+					});
 		}
 		//附加手牌（地主牌）
 		function appendPokers(pokers) {
@@ -219,17 +265,17 @@
 			$('input[name="pokers"]').each(function() {
 				handle.push($(this).val());//将选中的值添加到数组chk_value中      
 			});
-// 			alert(handle);
+			// 			alert(handle);
 			//添加地主牌到手牌
 			pokers.forEach(function(id) {
 				handle.push(id);
 			});
-// 			alert(handle);
+			// 			alert(handle);
 			//手牌排序
 			handle.sort(function(a, b) {
 				return b - a
 			});
-// 			alert(handle);
+			// 			alert(handle);
 			showPokers(handle);
 		}
 		var names = [ "", "", "", "3", "4", "5", "6", "7", "8", "9", "10", "J",
