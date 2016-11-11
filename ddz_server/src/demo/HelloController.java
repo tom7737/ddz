@@ -3,19 +3,16 @@ package demo;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.Timestamp;
-import java.util.List;
 import java.util.Random;
 
 import javax.servlet.http.HttpServletResponse;
 
-import com.ddz.model.Table;
 import com.jfinal.core.Controller;
 import com.jfinal.ext.plugin.monogodb.MongoKit;
 import com.jfinal.plugin.activerecord.Record;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
 import com.mongodb.WriteResult;
 
 public class HelloController extends Controller {

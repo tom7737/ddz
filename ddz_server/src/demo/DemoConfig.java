@@ -2,7 +2,7 @@ package demo;
 
 import java.net.UnknownHostException;
 
-import com.ddz.action.DdzController;
+import com.ddz.ms.action.DdzController;
 import com.jfinal.config.Constants;
 import com.jfinal.config.Handlers;
 import com.jfinal.config.Interceptors;
