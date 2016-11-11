@@ -1,4 +1,4 @@
-package demo;
+package com.ddz.ms;
 
 import java.net.UnknownHostException;
 
@@ -12,7 +12,9 @@ import com.jfinal.config.Routes;
 import com.jfinal.ext.plugin.monogodb.MongoKit;
 import com.mongodb.MongoClient;
 
-public class DemoConfig extends JFinalConfig {
+import demo.HelloController;
+
+public class DdzConfig extends JFinalConfig {
 
 	@Override
 	public void configConstant(Constants me) {
@@ -29,7 +31,7 @@ public class DemoConfig extends JFinalConfig {
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
-		MongoKit.init(mc, "users");
+		MongoKit.init(mc, "ddz");
 		//初始Action
 		me.add("/hello", HelloController.class);
 		me.add("/ddz", DdzController.class);

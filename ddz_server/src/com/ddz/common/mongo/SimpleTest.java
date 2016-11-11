@@ -1,9 +1,12 @@
 package com.ddz.common.mongo;
 import java.net.UnknownHostException;
+
+import com.jfinal.ext.plugin.monogodb.MongoKit;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.Mongo;
+import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
 import com.mongodb.util.JSON;
  
@@ -21,7 +24,6 @@ import com.mongodb.util.JSON;
 public class SimpleTest {
  
     public static void main(String[] args) throws UnknownHostException, MongoException {
-    	
         Mongo mg = new Mongo();
         //查询所有的Database
         for (String name : mg.getDatabaseNames()) {
