@@ -16,6 +16,9 @@ import java.util.UUID;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.ddz.ms.factory.PokerFactory;
+import com.ddz.ms.init.InitListener;
+import com.ddz.ms.init.RedisMsgQuene;
 import com.ddz.ms.model.Msg;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
@@ -108,13 +111,40 @@ public class DdzController extends Controller {
 			List<Player> players = randomPoker(table);
 			// 通知前端
 			for (Player player : players) {
-				startMsg.put(player.getName(), tableKey);
+				// startMsg.put(player.getName(), tableKey);
+				Record re = new Record();
+				String[] userIds = new String[3];
+				int i = 0;
+				int myindex = -1;
+				// 获取手牌，当前出牌者，标记用户的位置，便于区分上家及下家
+				re.set("pokers", Poker.pokerFormatLtoI(player.getPokers()));
+				for (Player p2 : players) {
+					userIds[i++] = p2.getName();
+					if (player.getName().equals(p2.getName())) {
+						myindex = i - 1;
+					}
+				}
+				if (myindex == 0) {
+					re.set("lastUserId", userIds[2]);
+					re.set("nextUserId", userIds[1]);
+				} else if (myindex == 1) {
+					re.set("lastUserId", userIds[0]);
+					re.set("nextUserId", userIds[2]);
+				} else if (myindex == 2) {
+					re.set("lastUserId", userIds[1]);
+					re.set("nextUserId", userIds[0]);
+				}
+				re.set("actionPlayerId", table.getActionPlayerId());
+				re.set("userId", player.getName());
+				String json = JsonKit.toJson(re);
+				// 添加到消息队列
+				RedisMsgQuene.push(new Msg(player.getName(), Msg.START, json));
 			}
 		}
 	}
 
 	private List<Player> randomPoker(Table table) {
-		List<Poker> pokers = new Msg().getList();
+		List<Poker> pokers = PokerFactory.getInstance();
 		List<Player> players = table.getPlayers();
 		// 发牌
 		// 打乱顺序
@@ -146,11 +176,6 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 准备接口的消息列表
-	 */
-	private static Map<String, String> startMsg = new HashMap<String, String>();
-
-	/**
 	 * 准备
 	 */
 	public void start() {
@@ -162,10 +187,9 @@ public class DdzController extends Controller {
 			return;
 		}
 		inTable(userId);
+		// 初始化HTML5消息推送器
 		HttpServletResponse res = this.getResponse();
-		// content type must be set to text/event-stream
 		res.setContentType("text/event-stream");
-		// encoding must be set to UTF-8
 		res.setCharacterEncoding("UTF-8");
 		PrintWriter out = null;
 		try {
@@ -173,114 +197,9 @@ public class DdzController extends Controller {
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
+		InitListener.setPrintWriter(userId, out);
+
 		while (true) {
-			// 推送准备接口的消息
-			if (startMsg.containsKey(userId)) {
-				// 获取tableKey 并从MAP中删除
-				String tableKey = startMsg.get(userId);
-				startMsg.remove(userId);
-				if ("out".equals(tableKey)) {// 用户退出
-					renderText("已经退出桌子");
-					return;
-				}
-				Table table = tables.get(tableKey);
-				System.out.println("当前用户：" + userId);
-				table.show();
-				List<Player> players = table.getPlayers();
-				Record re = new Record();
-				String[] userIds = new String[3];
-				int i = 0;
-				int myindex = -1;
-				// 获取手牌，当前出牌者，标记用户的位置，便于区分上家及下家
-				for (Player player : players) {
-					userIds[i++] = player.getName();
-					if (userId.equals(player.getName())) {
-						re.set("pokers",
-								Poker.pokerFormatLtoI(player.getPokers()));
-						myindex = i - 1;
-					}
-				}
-				if (myindex == 0) {
-					re.set("lastUserId", userIds[2]);
-					re.set("nextUserId", userIds[1]);
-				} else if (myindex == 1) {
-					re.set("lastUserId", userIds[0]);
-					re.set("nextUserId", userIds[2]);
-				} else if (myindex == 2) {
-					re.set("lastUserId", userIds[1]);
-					re.set("nextUserId", userIds[0]);
-				}
-				re.set("actionPlayerId", table.getActionPlayerId());
-				re.set("userId", userId);
-				String json = JsonKit.toJson(re);
-				out.println("event:start");
-				out.flush();
-				out.println("data: " + json + "\n");
-				out.flush();
-			}
-			// 推送叫地主接口的消息
-			if (selectLandMsg.containsKey(userId)) {
-				// 获取tableKey 并从MAP中删除
-				String tableKey = selectLandMsg.get(userId);
-				selectLandMsg.remove(userId);
-				Table table = tables.get(tableKey);
-				Record re = new Record();
-				re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
-				re.set("callPalyer", table.getCallPalyer());// 当前叫地主的玩家ID
-				re.set("landv", table.getLandvs().get(table.getCallPalyer()));// 叫分值
-				re.set("initPoints", table.getInitPoints());// 低分
-				re.set("status", table.getStatus());// 状态
-				// 开始游戏
-				// 判断桌子的状态是否为游戏中,显示地主牌和谁是地主
-				if (table.getStatus() == 2) {
-					re.set("lands", Poker.pokerFormatLtoI(table.getLands()));// 地主牌
-					re.set("landId", table.getLandId());// 地主ID
-				}
-				String json = JsonKit.toJson(re);
-				out.println("event:selectLand");
-				out.flush();
-				out.println("data: " + json + "\n");
-				out.flush();
-
-			}
-			// 推送出牌接口的消息
-			if (outPokerMsg.containsKey(userId)) {
-				// 获取tableKey 并从MAP中删除
-				String tableKey = outPokerMsg.get(userId);
-				outPokerMsg.remove(userId);
-				Table table = tables.get(tableKey);
-				List<Map<String, Integer[]>> outPokerLog = table
-						.getOutPokerLog();
-				Map<String, Integer[]> map = outPokerLog
-						.get(outPokerLog.size() - 1);
-				Record re = new Record();
-				String outPokerMan = map.keySet().iterator().next();
-				re.set("outPokerMan", outPokerMan);// 出牌人
-				re.set("outPoker", map.get(outPokerMan));// 出的牌
-				re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
-				re.set("status", table.getStatus());// 牌桌状态
-				String json = JsonKit.toJson(re);
-				out.println("event:outPoker");
-				out.flush();
-				out.println("data: " + json + "\n");
-				out.flush();
-
-			}
-			// 推送游戏结束的消息
-			if (gameOverMsg.containsKey(userId)) {
-				// 获取tableKey 并从MAP中删除
-				String tableKey = gameOverMsg.get(userId);
-				gameOverMsg.remove(userId);
-				Table table = tables.get(tableKey);
-				int result = table.getResults();
-				Record re = new Record();
-				re.set("result", result);// 结果
-				String json = JsonKit.toJson(re);
-				out.println("event:gameOver");
-				out.flush();
-				out.println("data: " + json + "\n");
-				out.flush();
-			}
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
@@ -288,50 +207,6 @@ public class DdzController extends Controller {
 			}
 		}
 	}
-
-	public static void main(String[] args) {
-		// String[] ints = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
-		// };
-		List<String> asList = new ArrayList<String>();
-		asList.add("1");
-		asList.add("2");
-		asList.add("3");
-		asList.add("4");
-		asList.add("5");
-		asList.add("6");
-		asList.add("7");
-		asList.add("8");
-		asList.add("9");
-		asList.add("10");
-		List<String> delList = new ArrayList<String>();
-		for (String integer : asList) {
-			if (Integer.valueOf(integer) % 3 == 0) {
-				delList.add(integer);
-			}
-		}
-		asList.removeAll(delList);
-		for (String string : asList) {
-			System.out.println(string);
-		}
-		// byte[] b = { 65, 66, 67 };
-		// for (int i = 0; i < b.length; i++) {
-		// System.out.print(b[i]);
-		// }
-		// String s = new String(b);
-		// System.out.println(s);
-		// byte[] bytes = s.getBytes();
-		// for (int i = 0; i < bytes.length; i++) {
-		//
-		// System.out.print(bytes[i]);
-		// }
-		// System.out.print("event：start\n");
-		// System.out.print("data：  json \n\n");
-	}
-
-	/**
-	 * 叫地主的消息列表
-	 */
-	private static Map<String, String> selectLandMsg = new HashMap<String, String>();
 
 	/**
 	 * 叫地主
@@ -375,10 +250,24 @@ public class DdzController extends Controller {
 			// 行动人按顺序延后
 			table.nextActionPlayerId();
 		}
-		System.out.println("通知前端");
+//		System.out.println("通知前端");
 		// 通知前端
+		Record re = new Record();
+		re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
+		re.set("callPalyer", table.getCallPalyer());// 当前叫地主的玩家ID
+		re.set("landv", table.getLandvs().get(table.getCallPalyer()));// 叫分值
+		re.set("initPoints", table.getInitPoints());// 低分
+		re.set("status", table.getStatus());// 状态
+		// 开始游戏
+		// 判断桌子的状态是否为游戏中,显示地主牌和谁是地主
+		if (table.getStatus() == 2) {
+			re.set("lands", Poker.pokerFormatLtoI(table.getLands()));// 地主牌
+			re.set("landId", table.getLandId());// 地主ID
+		}
+		String json = JsonKit.toJson(re);
 		for (Player player : table.getPlayers()) {
-			selectLandMsg.put(player.getName(), tableKey);
+			RedisMsgQuene
+					.push(new Msg(player.getName(), Msg.SELECT_LAND, json));
 		}
 		renderNull();
 	}
@@ -444,11 +333,6 @@ public class DdzController extends Controller {
 			handler.start();
 		}
 	}
-
-	/**
-	 * 出牌的消息列表
-	 */
-	private static Map<String, String> outPokerMsg = new HashMap<String, String>();
 
 	/**
 	 * 出牌
@@ -532,8 +416,15 @@ public class DdzController extends Controller {
 		}
 
 		// 通知前端
+		Record re = new Record();
+		re.set("outPokerMan", userId);// 出牌人
+		re.set("outPoker", pokerIds);// 出的牌
+		re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
+		re.set("status", table.getStatus());// 牌桌状态
+		String json = JsonKit.toJson(re);
 		for (Player player : table.getPlayers()) {
-			outPokerMsg.put(player.getName(), tableKey);
+			// outPokerMsg.put(player.getName(), tableKey);
+			RedisMsgQuene.push(new Msg(player.getName(), Msg.OUT_POKER, json));
 		}
 		renderNull();
 	}
@@ -570,16 +461,18 @@ public class DdzController extends Controller {
 		// 顺延行动人
 		table.nextActionPlayerId();
 		// 通知前端
+		Record re = new Record();
+		re.set("outPokerMan", userId);// 出牌人
+		re.set("outPoker", null);// 出的牌
+		re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
+		re.set("status", table.getStatus());// 牌桌状态
+		String json = JsonKit.toJson(re);
 		for (Player player : table.getPlayers()) {
-			outPokerMsg.put(player.getName(), tableKey);
+			// outPokerMsg.put(player.getName(), tableKey);
+			RedisMsgQuene.push(new Msg(player.getName(), Msg.OUT_POKER, json));
 		}
 		renderNull();
 	}
-
-	/**
-	 * 出牌的消息列表
-	 */
-	private static Map<String, String> gameOverMsg = new HashMap<String, String>();
 
 	/**
 	 * 处理游戏结束工作，主要是等最后出牌信息发出后再重新发牌
@@ -598,8 +491,13 @@ public class DdzController extends Controller {
 			System.out.print("游戏结束");
 			// 通知前端
 			Table table = tables.get(tableKey);
+			int result = table.getResults();
+			Record re = new Record();
+			re.set("result", result);// 结果
+			String json = JsonKit.toJson(re);
 			for (Player player : table.getPlayers()) {
-				gameOverMsg.put(player.getName(), tableKey);
+				RedisMsgQuene.push(new Msg(player.getName(), Msg.GAME_OVER,
+						json));
 			}
 		}
 	}
@@ -616,7 +514,7 @@ public class DdzController extends Controller {
 			System.out.println(userId + "退出");
 		}
 		// 通知客户端
-		startMsg.put(userId, "out");
+
 		renderNull();
 	}
 }

@@ -234,7 +234,7 @@ public class PokerType {
 		}
 		for (int i = 0; i < size; i = i + 2) {
 			int a = list.get(i).getName();
-			int b = list.get(i + 2).getName();
+			int b = list.get(i + 1).getName();
 			if (a - b != 1) {
 				return false;
 			}

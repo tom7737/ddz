@@ -1,62 +1,67 @@
 package com.ddz.ms.model;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * 牌堆（一副牌？）*
+ * 消息类
  * 
- * @author tom
- * @date 2016-10-22
+ * @author admin
+ * 
  */
 public class Msg implements Serializable {
+	
+	public static final String START = "start";
+	public static final String SELECT_LAND = "selectLand";
+	public static final String OUT_POKER = "outPoker";
+	public static final String GAME_OVER = "gameOver";
 
-	private static final long serialVersionUID = -3911518404188182583L;
+	private static final long serialVersionUID = 478923748923L;
 
-	private int id;
-	private List<Poker> list;
+	private String userId;
 
-	public int getId() {
-		return id;
+	private String event;
+
+	private String data;
+
+	public String getUserId() {
+		return userId;
 	}
 
-	public void setId(int id) {
-		this.id = id;
+	public void setUserId(String userId) {
+		this.userId = userId;
 	}
 
-	public List<Poker> getList() {
-		return list;
+	public String getEvent() {
+		return event;
 	}
 
-	public void setList(List<Poker> list) {
-		this.list = list;
+	public void setEvent(String event) {
+		this.event = event;
 	}
 
-	public static long getSerialversionuid() {
-		return serialVersionUID;
+	public String getData() {
+		return data;
+	}
+
+	public void setData(String data) {
+		this.data = data;
 	}
 
 	@Override
 	public String toString() {
-		return "Msg [id=" + id + ", list=" + list + "]";
+		return "Msg [userId=" + userId + ", event=" + event + ", data=" + data
+				+ "]";
 	}
 
-	public Msg(int id, List<Poker> list) {
+	public Msg(String userId, String event, String data) {
 		super();
-		this.id = id;
-		this.list = list;
+		this.userId = userId;
+		this.event = event;
+		this.data = data;
 	}
 
 	public Msg() {
 		super();
-		list =new ArrayList<Poker>();
-		for (int i = 3; i < 16; i++) {
-			for (int j = 0; j < 4; j++) {
-				list.add(new Poker(i * 10 + j, i, j, false));
-			}
-		}
-		list.add(new Poker(160, 16, 0, false));//小王
-		list.add(new Poker(171, 17, 1, false));//大王
 	}
+
 }
