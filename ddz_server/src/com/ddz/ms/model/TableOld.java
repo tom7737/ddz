@@ -1,11 +1,11 @@
 package com.ddz.ms.model;
 
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+
+import com.ddz.ms.model.db.DbTable;
 
 /**
  * 桌子*
@@ -13,17 +13,17 @@ import java.util.Random;
  * @author tom
  * @date 2016-10-22
  */
-public class Table implements Serializable {
+public class TableOld extends DbTable {
 
-	private static final long serialVersionUID = 334111123742983L;
+	private static final long serialVersionUID = 773123742983L;
 	/**
 	 * 标识列
 	 */
-	private Integer tableId;
+//	private String tableId;
 	/**
 	 * 桌子编号
 	 */
-	private Integer tableNum;
+//	private Integer tableNum;
 	/**
 	 * 桌上的玩家
 	 */
@@ -39,7 +39,7 @@ public class Table implements Serializable {
 	/**
 	 * 桌子状态 0空闲1叫地主中2游戏中
 	 */
-	private int status = 0;
+//	private Integer status = 0;
 	/**
 	 * 行动的玩家编号
 	 */
@@ -55,11 +55,11 @@ public class Table implements Serializable {
 	/**
 	 * 地主玩家编号
 	 */
-	private String landId;
+//	private String landId;
 	/**
 	 * 底分
 	 */
-	private Integer initPoints;
+//	private Integer initPoints;
 	/**
 	 * 出牌记录
 	 */
@@ -68,15 +68,15 @@ public class Table implements Serializable {
 	/**
 	 * 游戏结果0地主胜利1农民胜利
 	 */
-	private Integer results;
+//	private Integer results;
 	
-	public Integer getResults() {
-		return results;
-	}
-
-	public void setResults(Integer results) {
-		this.results = results;
-	}
+//	public Integer getResults() {
+//		return results;
+//	}
+//
+//	public void setResults(Integer results) {
+//		this.results = results;
+//	}
 
 	/**
 	 * 获取当前桌上的人数
@@ -100,21 +100,21 @@ public class Table implements Serializable {
 		return true;
 	}
 
-	public int getStatus() {
-		return status;
-	}
+//	public int getStatus() {
+//		return status;
+//	}
+//
+//	public void setStatus(int status) {
+//		this.status = status;
+//	}
 
-	public void setStatus(int status) {
-		this.status = status;
-	}
+//	public String getTableId() {
+//		return tableId;
+//	}
 
-	public Integer getTableId() {
-		return tableId;
-	}
-
-	public void setTableId(Integer tableId) {
-		this.tableId = tableId;
-	}
+//	public void setTableId(String tableId) {
+//		this.tableId = tableId;
+//	}
 
 	public List<Player> getPlayers() {
 		return players;
@@ -140,15 +140,15 @@ public class Table implements Serializable {
 		this.lands = lands;
 	}
 
-	public Integer getTableNum() {
-		return tableNum;
-	}
+//	public Integer getTableNum() {
+//		return tableNum;
+//	}
 
-	public void setTableNum(Integer tableNum) {
-		this.tableNum = tableNum;
-	}
+//	public void setTableNum(Integer tableNum) {
+//		this.tableNum = tableNum;
+//	}
 
-	public Table() {
+	public TableOld() {
 		super();
 	}
 
@@ -168,23 +168,23 @@ public class Table implements Serializable {
 		this.landvs = landvs;
 	}
 
-	public String getLandId() {
-		return landId;
-	}
-
-	public void setLandId(String landId) {
-		this.landId = landId;
-	}
-
-	public Integer getInitPoints() {
-		return initPoints;
-	}
-
-	public void setInitPoints(Integer initPoints) {
-		if (this.initPoints == null || this.initPoints < initPoints) {
-			this.initPoints = initPoints;
-		}
-	}
+//	public String getLandId() {
+//		return landId;
+//	}
+//
+//	public void setLandId(String landId) {
+//		this.landId = landId;
+//	}
+//
+//	public Integer getInitPoints() {
+//		return initPoints;
+//	}
+//
+//	public void setInitPoints(Integer initPoints) {
+//		if (this.initPoints == null || this.initPoints < initPoints) {
+//			this.initPoints = initPoints;
+//		}
+//	}
 
 	public String getCallPalyer() {
 		return callPalyer;

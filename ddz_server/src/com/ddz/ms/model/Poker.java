@@ -10,7 +10,7 @@ import java.util.List;
  * @author tom
  * @date 2016-10-22
  */
-public class Poker implements Serializable {
+public class Poker /* extends BasicDBObject */implements Serializable {
 
 	private static final long serialVersionUID = 489483938802054094L;
 

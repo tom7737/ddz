@@ -8,7 +8,7 @@ import java.util.List;
 * @author tom 
 * @date 2016-10-22
  */
-public class Player implements Serializable{
+public class Player /*extends BasicDBObject*/ implements Serializable{
 
 	private static final long serialVersionUID = 5732930012273200036L;
 

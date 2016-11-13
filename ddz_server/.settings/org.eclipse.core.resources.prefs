@@ -1,3 +1,4 @@
 eclipse.preferences.version=1
 encoding//src/com/ddz/ms/factory/PokerFactory.java=UTF-8
-encoding//src/com/ddz/ms/model/Table.java=UTF-8
+encoding//src/com/ddz/ms/model/TableOld.java=UTF-8
+encoding//src/com/ddz/ms/model/db/DbTable.java=UTF-8

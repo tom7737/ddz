@@ -22,7 +22,9 @@ import com.ddz.ms.init.RedisMsgQuene;
 import com.ddz.ms.model.Msg;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
-import com.ddz.ms.model.Table;
+import com.ddz.ms.model.TableOld;
+import com.ddz.ms.service.TableService;
+import com.ddz.ms.service.impl.TableServiceImpl;
 import com.ddz.ms.util.IsBigger;
 import com.ddz.ms.util.PokerType;
 import com.jfinal.core.Controller;
@@ -36,7 +38,8 @@ import com.jfinal.plugin.activerecord.Record;
  * @date 2016-10-23
  */
 public class DdzController extends Controller {
-
+	
+	private TableService tableService = new TableServiceImpl();
 	/**
 	 * 注册
 	 */
@@ -47,7 +50,7 @@ public class DdzController extends Controller {
 	/**
 	 * 桌子集合
 	 */
-	private static Map<String, Table> tables = new HashMap<String, Table>();
+	private static Map<String, TableOld> tables = new HashMap<String, TableOld>();
 	/**
 	 * 用户编号集合，模拟凑桌人数
 	 */
@@ -73,7 +76,7 @@ public class DdzController extends Controller {
 			String userId2 = userIds.get(1);
 			userIds = new LinkedList<String>();
 			// 初始化桌子
-			Table table = new Table();
+			TableOld table = new TableOld();
 			Player p1 = new Player();
 			p1.setName(userId1);
 			Player p2 = new Player();
@@ -107,8 +110,12 @@ public class DdzController extends Controller {
 		@Override
 		public void run() {
 			System.out.println(tableKey);
-			Table table = tables.get(tableKey);
+			TableOld table = tables.get(tableKey);
 			List<Player> players = randomPoker(table);
+			//************
+			table.setTableId(tableKey);
+			tableService.add(table);
+			//************
 			// 通知前端
 			for (Player player : players) {
 				// startMsg.put(player.getName(), tableKey);
@@ -143,7 +150,7 @@ public class DdzController extends Controller {
 		}
 	}
 
-	private List<Player> randomPoker(Table table) {
+	private List<Player> randomPoker(TableOld table) {
 		List<Poker> pokers = PokerFactory.getInstance();
 		List<Player> players = table.getPlayers();
 		// 发牌
@@ -221,7 +228,7 @@ public class DdzController extends Controller {
 		}
 		// 验证用户ID是否为当前行动的用户
 		String tableKey = user_table.get(userId);
-		Table table = tables.get(tableKey);
+		TableOld table = tables.get(tableKey);
 		if (!table.getActionPlayerId().equals(userId)) {
 			renderText("不是当前行动的玩家");
 			return;
@@ -278,7 +285,7 @@ public class DdzController extends Controller {
 	 * @param table
 	 * @param landId
 	 */
-	private void startGame(Table table) {
+	private void startGame(TableOld table) {
 		// 叫分最高的成为地主
 		String landId = null;
 		Set<String> landvs_userIds = table.getLandvs().keySet();
@@ -350,7 +357,7 @@ public class DdzController extends Controller {
 		// System.out.println(pokers);
 		// 判断是否为当前行动人
 		String tableKey = user_table.get(userId);
-		Table table = tables.get(tableKey);
+		TableOld table = tables.get(tableKey);
 		if (!table.getActionPlayerId().equals(userId)) {
 			renderText("不是当前行动的玩家");
 			return;
@@ -435,7 +442,7 @@ public class DdzController extends Controller {
 	public void notOutPoker() {
 		String userId = this.getPara("userId");
 		String tableKey = user_table.get(userId);
-		Table table = tables.get(tableKey);
+		TableOld table = tables.get(tableKey);
 		List<Map<String, Integer[]>> outPokerLog = table.getOutPokerLog();
 		// 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
 		if (outPokerLog == null || outPokerLog.size() == 0) {
@@ -490,7 +497,7 @@ public class DdzController extends Controller {
 			}
 			System.out.print("游戏结束");
 			// 通知前端
-			Table table = tables.get(tableKey);
+			TableOld table = tables.get(tableKey);
 			int result = table.getResults();
 			Record re = new Record();
 			re.set("result", result);// 结果
