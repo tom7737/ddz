@@ -3,6 +3,8 @@ package com.ddz.ms;
 import java.net.UnknownHostException;
 
 import com.ddz.ms.action.DdzController;
+import com.ddz.ms.service.SeatService;
+import com.ddz.ms.service.impl.SeatServiceImpl;
 import com.jfinal.config.Constants;
 import com.jfinal.config.Handlers;
 import com.jfinal.config.Interceptors;
@@ -24,7 +26,7 @@ public class DdzConfig extends JFinalConfig {
 	@Override
 	public void configRoute(Routes me) {
 		System.out.println("初始化Jfinal");
-		//初始化MongoKit
+		// 初始化MongoKit
 		MongoClient mc = null;
 		try {
 			mc = new MongoClient("127.0.0.1", 27017);
@@ -32,7 +34,10 @@ public class DdzConfig extends JFinalConfig {
 			e.printStackTrace();
 		}
 		MongoKit.init(mc, "ddz");
-		//初始Action
+		//初始座位
+		SeatService seatService = new SeatServiceImpl();
+		seatService.initSeat();
+		// 初始Action
 		me.add("/hello", HelloController.class);
 		me.add("/ddz", DdzController.class);
 	}

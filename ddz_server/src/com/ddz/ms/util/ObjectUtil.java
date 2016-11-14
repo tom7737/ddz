@@ -6,6 +6,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import com.google.gson.Gson;
+import com.mongodb.DBObject;
+import com.mongodb.util.JSON;
+
 public class ObjectUtil {
 	/**
 	 * 对象转byte[]
@@ -35,5 +39,17 @@ public class ObjectUtil {
 		ByteArrayInputStream in = new ByteArrayInputStream(bytes);
 		ObjectInputStream sIn = new ObjectInputStream(in);
 		return sIn.readObject();
+	}
+	
+	/**
+	 * 将普通Object对象转换成mongodb的DBObject对象
+	 * 
+	 * @param obj
+	 * @return
+	 */
+	public static DBObject toDBObject(Object obj) {
+		Gson gson = new Gson();
+		String json = gson.toJson(obj);
+		return (DBObject) JSON.parse(json);
 	}
 }

@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletResponse;
@@ -22,7 +21,7 @@ import com.ddz.ms.init.RedisMsgQuene;
 import com.ddz.ms.model.Msg;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
-import com.ddz.ms.model.TableOld;
+import com.ddz.ms.model.Table;
 import com.ddz.ms.service.TableService;
 import com.ddz.ms.service.impl.TableServiceImpl;
 import com.ddz.ms.util.IsBigger;
@@ -38,8 +37,9 @@ import com.jfinal.plugin.activerecord.Record;
  * @date 2016-10-23
  */
 public class DdzController extends Controller {
-	
+
 	private TableService tableService = new TableServiceImpl();
+
 	/**
 	 * 注册
 	 */
@@ -50,7 +50,7 @@ public class DdzController extends Controller {
 	/**
 	 * 桌子集合
 	 */
-	private static Map<String, TableOld> tables = new HashMap<String, TableOld>();
+	private static Map<String, Table> tables = new HashMap<String, Table>();
 	/**
 	 * 用户编号集合，模拟凑桌人数
 	 */
@@ -76,13 +76,13 @@ public class DdzController extends Controller {
 			String userId2 = userIds.get(1);
 			userIds = new LinkedList<String>();
 			// 初始化桌子
-			TableOld table = new TableOld();
+			Table table = new Table();
 			Player p1 = new Player();
-			p1.setName(userId1);
+			p1.setUserId(userId1);
 			Player p2 = new Player();
-			p2.setName(userId2);
+			p2.setUserId(userId2);
 			Player p3 = new Player();
-			p3.setName(userId);
+			p3.setUserId(userId);
 			table.inTable(p1);
 			table.inTable(p2);
 			table.inTable(p3);
@@ -110,15 +110,11 @@ public class DdzController extends Controller {
 		@Override
 		public void run() {
 			System.out.println(tableKey);
-			TableOld table = tables.get(tableKey);
+			Table table = tables.get(tableKey);
 			List<Player> players = randomPoker(table);
-			//************
 			table.setTableId(tableKey);
-			tableService.add(table);
-			//************
 			// 通知前端
 			for (Player player : players) {
-				// startMsg.put(player.getName(), tableKey);
 				Record re = new Record();
 				String[] userIds = new String[3];
 				int i = 0;
@@ -126,8 +122,8 @@ public class DdzController extends Controller {
 				// 获取手牌，当前出牌者，标记用户的位置，便于区分上家及下家
 				re.set("pokers", Poker.pokerFormatLtoI(player.getPokers()));
 				for (Player p2 : players) {
-					userIds[i++] = p2.getName();
-					if (player.getName().equals(p2.getName())) {
+					userIds[i++] = p2.getUserId();
+					if (player.getUserId().equals(p2.getUserId())) {
 						myindex = i - 1;
 					}
 				}
@@ -142,15 +138,16 @@ public class DdzController extends Controller {
 					re.set("nextUserId", userIds[0]);
 				}
 				re.set("actionPlayerId", table.getActionPlayerId());
-				re.set("userId", player.getName());
+				re.set("userId", player.getUserId());
 				String json = JsonKit.toJson(re);
 				// 添加到消息队列
-				RedisMsgQuene.push(new Msg(player.getName(), Msg.START, json));
+				RedisMsgQuene
+						.push(new Msg(player.getUserId(), Msg.START, json));
 			}
 		}
 	}
 
-	private List<Player> randomPoker(TableOld table) {
+	private List<Player> randomPoker(Table table) {
 		List<Poker> pokers = PokerFactory.getInstance();
 		List<Player> players = table.getPlayers();
 		// 发牌
@@ -174,9 +171,8 @@ public class DdzController extends Controller {
 		// table.show();
 		// 随机一个用户先叫牌
 		table.randomActionPlayerId();
-		// 初始叫牌记录和当前叫牌人
-		table.setLandvs(new HashMap<String, Integer>());
-		table.setCallPalyer(null);
+		// 初始叫牌记录
+		table.setLandvLog(new ArrayList<Map<String, Integer>>());
 		// 状态改为叫地主中
 		table.setStatus(1);
 		return players;
@@ -228,20 +224,21 @@ public class DdzController extends Controller {
 		}
 		// 验证用户ID是否为当前行动的用户
 		String tableKey = user_table.get(userId);
-		TableOld table = tables.get(tableKey);
+		Table table = tables.get(tableKey);
 		if (!table.getActionPlayerId().equals(userId)) {
 			renderText("不是当前行动的玩家");
 			return;
 		}
 		// 记录叫分人和叫分值
-		Map<String, Integer> landvs = table.getLandvs();
-		landvs.put(userId, landv);
-		table.setCallPalyer(userId);
+		List<Map<String, Integer>> landvLog = table.getLandvLog();
+		Map<String, Integer> landvs_temp = new HashMap<String, Integer>();
+		landvs_temp.put(userId, landv);
+		landvLog.add(landvs_temp);
 		table.setInitPoints(landv);
 		// 如果当前用户叫了3分，则直接开始
 		if (table.getInitPoints() == 3) {// 结束叫牌（开始游戏）
 			startGame(table);
-		} else if (table.getLandvs().size() == 3) {// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
+		} else if (table.getLandvLog().size() == 3) {// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
 			if (table.getInitPoints() > 0) {// 结束叫牌（开始游戏）
 				startGame(table);
 			} else {
@@ -257,13 +254,13 @@ public class DdzController extends Controller {
 			// 行动人按顺序延后
 			table.nextActionPlayerId();
 		}
-//		System.out.println("通知前端");
+		// System.out.println("通知前端");
 		// 通知前端
 		Record re = new Record();
 		re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
-		re.set("callPalyer", table.getCallPalyer());// 当前叫地主的玩家ID
-		re.set("landv", table.getLandvs().get(table.getCallPalyer()));// 叫分值
-		re.set("initPoints", table.getInitPoints());// 低分
+		re.set("callPalyer", userId);// 当前叫地主的玩家ID
+		re.set("landv", landv);// 叫分值
+		re.set("initPoints", table.getInitPoints());// 底分
 		re.set("status", table.getStatus());// 状态
 		// 开始游戏
 		// 判断桌子的状态是否为游戏中,显示地主牌和谁是地主
@@ -273,8 +270,8 @@ public class DdzController extends Controller {
 		}
 		String json = JsonKit.toJson(re);
 		for (Player player : table.getPlayers()) {
-			RedisMsgQuene
-					.push(new Msg(player.getName(), Msg.SELECT_LAND, json));
+			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.SELECT_LAND,
+					json));
 		}
 		renderNull();
 	}
@@ -285,12 +282,13 @@ public class DdzController extends Controller {
 	 * @param table
 	 * @param landId
 	 */
-	private void startGame(TableOld table) {
+	private void startGame(Table table) {
 		// 叫分最高的成为地主
 		String landId = null;
-		Set<String> landvs_userIds = table.getLandvs().keySet();
-		for (String landvs_userId : landvs_userIds) {
-			if (table.getInitPoints() == table.getLandvs().get(landvs_userId)) {
+		List<Map<String, Integer>> landvs = table.getLandvLog();
+		for (Map<String, Integer> map : landvs) {
+			String landvs_userId = map.keySet().iterator().next();
+			if (table.getInitPoints() == map.get(landvs_userId)) {
 				landId = landvs_userId;
 				break;
 			}
@@ -305,7 +303,7 @@ public class DdzController extends Controller {
 		List<Poker> lands = table.getLands();
 		List<Player> players = table.getPlayers();
 		for (Player player : players) {
-			if (player.getName().equals(landId)) {
+			if (player.getUserId().equals(landId)) {
 				player.setIsland(true);
 				// 将地主牌发给地主
 				player.getPokers().addAll(lands);
@@ -353,25 +351,23 @@ public class DdzController extends Controller {
 		}
 		pokerIds = Poker.sortById(pokerIds);// 排序，方便后续操作
 		List<Integer> l_pokerIds = Arrays.asList(pokerIds);
-		// List<Poker> pokers = Poker.pokerFormatItoL(pokerIds);
-		// System.out.println(pokers);
 		// 判断是否为当前行动人
 		String tableKey = user_table.get(userId);
-		TableOld table = tables.get(tableKey);
+		Table table = tables.get(tableKey);
 		if (!table.getActionPlayerId().equals(userId)) {
 			renderText("不是当前行动的玩家");
 			return;
 		}
 		String pokerType = PokerType.pokerType(Poker.pokerFormatItoL(pokerIds));
 		// 判断出牌是否符合规则
-		if (PokerType.ERROR.equals(pokerType)) {
-			renderText("出的牌不符合规则");
-			return;
-		}
-		if (!IsBigger.isBigger(table.getOutPokerLog(), pokerIds)) {
-			renderText("出的牌不符合规则");
-			return;
-		}
+//		if (PokerType.ERROR.equals(pokerType)) {
+//			renderText("出的牌不符合规则");
+//			return;
+//		}
+//		if (!IsBigger.isBigger(table.getOutPokerLog(), pokerIds)) {
+//			renderText("出的牌不符合规则");
+//			return;
+//		}
 		// 判断是不是炸弹，如果是炸弹则分数翻倍
 		if (PokerType.ZHADAN.equals(pokerType)
 				|| PokerType.WANGZHA.equals(pokerType)) {
@@ -380,7 +376,7 @@ public class DdzController extends Controller {
 		// 将出的牌从手牌中转移到弃牌区
 		List<Player> players = table.getPlayers();
 		for (Player player : players) {
-			if (player.getName().equals(userId)) {
+			if (player.getUserId().equals(userId)) {
 				List<Poker> pokers_temp = player.getPokers();
 				List<Poker> delpokers = new ArrayList<Poker>();// 需要删除的手牌
 				for (Poker poker : pokers_temp) {
@@ -403,7 +399,7 @@ public class DdzController extends Controller {
 		table.nextActionPlayerId();
 		// 判断是否已将牌出完，出完则结束游戏
 		for (Player player : players) {
-			if (player.getName().equals(userId)
+			if (player.getUserId().equals(userId)
 					&& player.getPokers().size() == 0) {
 				table.setStatus(0);// 牌桌状态改为空闲
 				table.setActionPlayerId(null);// 行动人制空
@@ -431,7 +427,8 @@ public class DdzController extends Controller {
 		String json = JsonKit.toJson(re);
 		for (Player player : table.getPlayers()) {
 			// outPokerMsg.put(player.getName(), tableKey);
-			RedisMsgQuene.push(new Msg(player.getName(), Msg.OUT_POKER, json));
+			RedisMsgQuene
+					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
 		renderNull();
 	}
@@ -442,7 +439,7 @@ public class DdzController extends Controller {
 	public void notOutPoker() {
 		String userId = this.getPara("userId");
 		String tableKey = user_table.get(userId);
-		TableOld table = tables.get(tableKey);
+		Table table = tables.get(tableKey);
 		List<Map<String, Integer[]>> outPokerLog = table.getOutPokerLog();
 		// 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
 		if (outPokerLog == null || outPokerLog.size() == 0) {
@@ -476,7 +473,8 @@ public class DdzController extends Controller {
 		String json = JsonKit.toJson(re);
 		for (Player player : table.getPlayers()) {
 			// outPokerMsg.put(player.getName(), tableKey);
-			RedisMsgQuene.push(new Msg(player.getName(), Msg.OUT_POKER, json));
+			RedisMsgQuene
+					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
 		renderNull();
 	}
@@ -496,14 +494,16 @@ public class DdzController extends Controller {
 				e.printStackTrace();
 			}
 			System.out.print("游戏结束");
+			Table table = tables.get(tableKey);
+			// 保存对局记录
+			 tableService.saveLog(table);
 			// 通知前端
-			TableOld table = tables.get(tableKey);
 			int result = table.getResults();
 			Record re = new Record();
 			re.set("result", result);// 结果
 			String json = JsonKit.toJson(re);
 			for (Player player : table.getPlayers()) {
-				RedisMsgQuene.push(new Msg(player.getName(), Msg.GAME_OVER,
+				RedisMsgQuene.push(new Msg(player.getUserId(), Msg.GAME_OVER,
 						json));
 			}
 		}

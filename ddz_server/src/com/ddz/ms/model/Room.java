@@ -14,11 +14,11 @@ public class Room  {
 	/**
 	 * 房间的桌子列表
 	 */
-	public List<TableOld> talbes = new ArrayList<TableOld>();
+	public List<Table> talbes = new ArrayList<Table>();
 	
 	public void initTables(int counts){
 		for (int i = 0; i < counts; i++) {
-			talbes.add(new TableOld());
+			talbes.add(new Table());
 		}
 	}
 

@@ -12,21 +12,29 @@ public class Player /*extends BasicDBObject*/ implements Serializable{
 
 	private static final long serialVersionUID = 5732930012273200036L;
 
-	private int id;
-	private String name;//名字
+	private String id;
+	private String userId;//名字--userId
 	private List<Poker> pokers;//手牌
 	private boolean island;//是否是地主
-	public int getId() {
+	private String tableId;//桌子ID
+	
+	public String getTableId() {
+		return tableId;
+	}
+	public void setTableId(String tableId) {
+		this.tableId = tableId;
+	}
+	public String getId() {
 		return id;
 	}
-	public void setId(int id) {
+	public void setId(String id) {
 		this.id = id;
 	}
-	public String getName() {
-		return name;
+	public String getUserId() {
+		return userId;
 	}
-	public void setName(String name) {
-		this.name = name;
+	public void setUserId(String userId) {
+		this.userId = userId;
 	}
 	public List<Poker> getPokers() {
 		return pokers;
@@ -43,10 +51,10 @@ public class Player /*extends BasicDBObject*/ implements Serializable{
 	public static long getSerialversionuid() {
 		return serialVersionUID;
 	}
-	public Player(int id, String name, List<Poker> pokers, boolean island) {
+	public Player(String id, String userId, List<Poker> pokers, boolean island) {
 		super();
 		this.id = id;
-		this.name = name;
+		this.userId = userId;
 		this.pokers = pokers;
 		this.island = island;
 	}
@@ -56,7 +64,7 @@ public class Player /*extends BasicDBObject*/ implements Serializable{
 	}
 	@Override
 	public String toString() {
-		return "Player [id=" + id + ", name=" + name + ", pokers=" + pokers
+		return "Player [id=" + id + ", userId=" + userId + ", pokers=" + pokers
 				+ ", island=" + island + "]";
 	}
 	

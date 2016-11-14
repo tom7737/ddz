@@ -1,11 +1,10 @@
 package com.ddz.ms.model;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
-import com.ddz.ms.model.db.DbTable;
 
 /**
  * 桌子*
@@ -13,17 +12,17 @@ import com.ddz.ms.model.db.DbTable;
  * @author tom
  * @date 2016-10-22
  */
-public class TableOld extends DbTable {
+public class Table implements Serializable {
 
 	private static final long serialVersionUID = 773123742983L;
 	/**
 	 * 标识列
 	 */
-//	private String tableId;
+	private String tableId;
 	/**
 	 * 桌子编号
 	 */
-//	private Integer tableNum;
+	private Integer tableNum;
 	/**
 	 * 桌上的玩家
 	 */
@@ -39,7 +38,7 @@ public class TableOld extends DbTable {
 	/**
 	 * 桌子状态 0空闲1叫地主中2游戏中
 	 */
-//	private Integer status = 0;
+	private Integer status = 0;
 	/**
 	 * 行动的玩家编号
 	 */
@@ -47,19 +46,15 @@ public class TableOld extends DbTable {
 	/**
 	 * 地主分记录
 	 */
-	private Map<String, Integer> landvs;// = new HashMap<String, Integer>();
-	/**
-	 * 当前叫分人
-	 */
-	private String callPalyer;
+	private List<Map<String, Integer>> landvLog;// = new HashMap<String, Integer>();
 	/**
 	 * 地主玩家编号
 	 */
-//	private String landId;
+	private String landId;
 	/**
 	 * 底分
 	 */
-//	private Integer initPoints;
+	private Integer initPoints;
 	/**
 	 * 出牌记录
 	 */
@@ -68,15 +63,15 @@ public class TableOld extends DbTable {
 	/**
 	 * 游戏结果0地主胜利1农民胜利
 	 */
-//	private Integer results;
+	private Integer results;
 	
-//	public Integer getResults() {
-//		return results;
-//	}
-//
-//	public void setResults(Integer results) {
-//		this.results = results;
-//	}
+	public Integer getResults() {
+		return results;
+	}
+
+	public void setResults(Integer results) {
+		this.results = results;
+	}
 
 	/**
 	 * 获取当前桌上的人数
@@ -100,21 +95,21 @@ public class TableOld extends DbTable {
 		return true;
 	}
 
-//	public int getStatus() {
-//		return status;
-//	}
-//
-//	public void setStatus(int status) {
-//		this.status = status;
-//	}
+	public int getStatus() {
+		return status;
+	}
 
-//	public String getTableId() {
-//		return tableId;
-//	}
+	public void setStatus(int status) {
+		this.status = status;
+	}
 
-//	public void setTableId(String tableId) {
-//		this.tableId = tableId;
-//	}
+	public String getTableId() {
+		return tableId;
+	}
+
+	public void setTableId(String tableId) {
+		this.tableId = tableId;
+	}
 
 	public List<Player> getPlayers() {
 		return players;
@@ -140,15 +135,15 @@ public class TableOld extends DbTable {
 		this.lands = lands;
 	}
 
-//	public Integer getTableNum() {
-//		return tableNum;
-//	}
+	public Integer getTableNum() {
+		return tableNum;
+	}
 
-//	public void setTableNum(Integer tableNum) {
-//		this.tableNum = tableNum;
-//	}
+	public void setTableNum(Integer tableNum) {
+		this.tableNum = tableNum;
+	}
 
-	public TableOld() {
+	public Table() {
 		super();
 	}
 
@@ -160,39 +155,32 @@ public class TableOld extends DbTable {
 		this.actionPlayerId = actionPlayerId;
 	}
 
-	public Map<String, Integer> getLandvs() {
-		return landvs;
+	public List<Map<String, Integer>> getLandvLog() {
+		return landvLog;
 	}
 
-	public void setLandvs(Map<String, Integer> landvs) {
-		this.landvs = landvs;
+	public void setLandvLog(List<Map<String, Integer>> landvLog) {
+		this.landvLog = landvLog;
 	}
 
-//	public String getLandId() {
-//		return landId;
-//	}
-//
-//	public void setLandId(String landId) {
-//		this.landId = landId;
-//	}
-//
-//	public Integer getInitPoints() {
-//		return initPoints;
-//	}
-//
-//	public void setInitPoints(Integer initPoints) {
-//		if (this.initPoints == null || this.initPoints < initPoints) {
-//			this.initPoints = initPoints;
-//		}
-//	}
-
-	public String getCallPalyer() {
-		return callPalyer;
+	public String getLandId() {
+		return landId;
 	}
 
-	public void setCallPalyer(String callPalyer) {
-		this.callPalyer = callPalyer;
+	public void setLandId(String landId) {
+		this.landId = landId;
 	}
+
+	public Integer getInitPoints() {
+		return initPoints;
+	}
+
+	public void setInitPoints(Integer initPoints) {
+		if (this.initPoints == null || this.initPoints < initPoints) {
+			this.initPoints = initPoints;
+		}
+	}
+
 
 	public List<Map<String, Integer[]>> getOutPokerLog() {
 		return outPokerLog;
@@ -205,7 +193,7 @@ public class TableOld extends DbTable {
 	public void show() {
 		System.out.println("当前牌况：");
 		for (Player player : players) {
-			System.out.println("用户" + player.getName() + "拥有手牌：");
+			System.out.println("用户" + player.getUserId() + "拥有手牌：");
 			List<Poker> pokers = player.getPokers();
 			for (Poker poker : pokers) {
 				System.out.print(poker.show());
@@ -229,11 +217,11 @@ public class TableOld extends DbTable {
 	 */
 	public void nextActionPlayerId() {
 		for (int i = 0; i < players.size(); i++) {
-			if (players.get(i).getName().equals(this.actionPlayerId)) {
+			if (players.get(i).getUserId().equals(this.actionPlayerId)) {
 				if (i == players.size() - 1)
-					this.actionPlayerId = players.get(0).getName();
+					this.actionPlayerId = players.get(0).getUserId();
 				else
-					this.actionPlayerId = players.get(i + 1).getName();
+					this.actionPlayerId = players.get(i + 1).getUserId();
 				break;
 			}
 		}
@@ -246,7 +234,7 @@ public class TableOld extends DbTable {
 	public void randomActionPlayerId() {
 		Random r = new Random();
 		int nextInt = r.nextInt(3);
-		this.actionPlayerId = players.get(nextInt).getName();
+		this.actionPlayerId = players.get(nextInt).getUserId();
 	}
 
 }
