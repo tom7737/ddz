@@ -34,7 +34,8 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 
 /**
- * 桌子控制类* FIXME 换桌4，计时器5，实时记录叫地主和出牌日志3，redis代替map存储数据1ok，消息队列添加延时功能2ok
+ * 桌子控制类* FIXME
+ * 换桌4，计时器5，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，消息队列添加延时功能2ok,断线重连7，监听断线6（使用WebSocket）
  * 
  * @author tom
  * @date 2016-10-23
@@ -438,20 +439,31 @@ public class DdzController extends Controller {
 	 * 离开桌子
 	 */
 	public void outTable() {
-		// 正在游戏时不能退出
+		// 用户在牌局中时不能退出
 		String userId = this.getPara("userId");
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
-		if (gameId == null) {
-			renderNull();
-			return;
-		}
-		Game game = games.get(gameId);
-		if (game == null || game.getStatus() != 0) {
+		if (gameId != null) {
 			renderNull();
 			return;
 		}
 		seatService.exit(userId);
 		System.out.println(userId + "退出");
+		// 通知客户端
+		renderNull();
+	}
+
+	/**
+	 * 换桌
+	 */
+	public void changeTable() {
+		// 用户在牌局中时不能换桌
+		String userId = this.getPara("userId");
+		String gameId = UserGameData.hget(userId);// user_game.get(userId);
+		if (gameId != null) {
+			renderNull();
+			return;
+		}
+		seatService.changeSeat(userId);
 		// 通知客户端
 		renderNull();
 	}

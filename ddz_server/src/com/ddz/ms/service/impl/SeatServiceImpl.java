@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.ddz.ms.service.SeatService;
 import com.jfinal.ext.plugin.monogodb.MongoKit;
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -29,12 +30,10 @@ public class SeatServiceImpl implements SeatService {
 	public static void main(String[] args) {
 		initTest();
 		SeatServiceImpl s = new SeatServiceImpl();
-		// s.initSeat();
-		// s.inSeat("1");
-		// s.ready("1");
-
-		DBCursor byTableNum = s.getByTableNum(1);
-		System.out.println(byTableNum.next());
+		s.initSeat();
+		s.inSeat("1");
+		s.ready("1");
+		s.changeSeat("1");
 	}
 
 	/**
@@ -67,6 +66,40 @@ public class SeatServiceImpl implements SeatService {
 		BasicDBObject o = new BasicDBObject();
 		BasicDBObject o2 = new BasicDBObject();
 		o2.put("userId", userId);
+		o.put("$set", o2);
+		seat.update(q, o);
+	}
+
+	/**
+	 * 玩家换桌
+	 * 
+	 * @param userId
+	 */
+	public void changeSeat(String userId) {
+		DBObject byUserId = getByUserId(userId);
+		if (byUserId == null) {
+			inSeat(userId);
+			return;
+		}
+		exit(userId);// 退出原来的桌子
+		// 进入新的桌子并准备
+		// { "$and" : [ { "userId" : null } , { "tableNum" : { "$ne" : 1}}]}
+		BasicDBObject q = new BasicDBObject();
+		BasicDBList ql = new BasicDBList();
+		BasicDBObject q1 = new BasicDBObject();
+		q1.put("userId", null);
+		BasicDBObject q2 = new BasicDBObject();
+		BasicDBObject q3 = new BasicDBObject();
+		q3.put("$ne", Integer.valueOf(byUserId.get("tableNum").toString()));
+		q2.put("tableNum", q3);
+		ql.add(q1);
+		ql.add(q2);
+		q.put("$and", ql);
+//		System.out.println(q);
+		BasicDBObject o = new BasicDBObject();
+		BasicDBObject o2 = new BasicDBObject();
+		o2.put("userId", userId);
+		o2.put("isReady", true);
 		o.put("$set", o2);
 		seat.update(q, o);
 	}
@@ -152,7 +185,9 @@ public class SeatServiceImpl implements SeatService {
 		return seat.find(basicDBObject);
 	}
 
-	@Override
+	/**
+	 * 取消准备
+	 */
 	public void cancelReady(String userId) {
 		BasicDBObject q = new BasicDBObject();
 		q.put("userId", userId);

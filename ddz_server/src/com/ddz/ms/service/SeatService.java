@@ -49,4 +49,10 @@ public interface SeatService extends BaseService<String, DBObject> {
 	 * 取消准备
 	 */
 	void cancelReady(String userId);
+	/**
+	 * 玩家换桌
+	 * 
+	 * @param userId
+	 */
+	public void changeSeat(String userId);
 }

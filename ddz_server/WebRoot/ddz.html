@@ -21,6 +21,7 @@
 	<br>
 	<button id="btn_start" onclick="ready();">准备</button>
 	<button id="btn_out" onclick="out();" style="display:none;">退出</button>
+	<button id="btn_change" onclick="changeTable();" style="display:none;">换桌</button>
 	<br>
 	<br>
 	<div id="selectLand" style="display:none;">
@@ -50,7 +51,8 @@
 				// 				document.getElementById('push').innerHTML = event.data;
 			};
 			es.addEventListener('ready', function(event) {//发牌成功后的回调函数
-				$("#btn_out").hide();
+// 				$("#btn_out").hide();
+				$("#btn_change").hide();
 				var d = jQuery.parseJSON(event.data);
 				//三个玩家信息
 				lastUserId = d.lastUserId;
@@ -145,6 +147,23 @@
 				msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
 						+ (userRole == d.result ? "赢了" : "输了"));
 				$("#btn_start").show();
+				$("#btn_change").show();
+			});
+		}
+		//换桌
+		function changeTable() {
+			$.ajax({
+				url : "/ddz_server/ddz/changeTable?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+					$("#btn_start").hide();
+					//$("#btn_out").show();
+					$("#btn_change").show();
+				}
 			});
 		}
 		//准备
@@ -158,7 +177,8 @@
 						return;
 					}
 					$("#btn_start").hide();
-					$("#btn_out").show();
+					//$("#btn_out").show();
+					$("#btn_change").show();
 				}
 			});
 		}
@@ -253,7 +273,8 @@
 				type : "post",
 				success : function() {
 					msg("退出");
-					$("#btn_out").hide();
+// 					$("#btn_out").hide();
+					$("#btn_change").hide();
 					$("#btn_start").show();
 				}
 			});
