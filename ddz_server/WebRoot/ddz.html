@@ -19,7 +19,7 @@
 	<div id="pokers"></div>
 	<br>
 	<br>
-	<button id="btn_start" onclick="start();">准备</button>
+	<button id="btn_start" onclick="ready();">准备</button>
 	<button id="btn_out" onclick="out();" style="display:none;">退出</button>
 	<br>
 	<br>
@@ -42,15 +42,14 @@
 		var nextUserRole;//下家角色
 		// 		var pokers;//手牌
 		var notOutCount = 0;//记录不出的次数，2次不出后，则下家必须出牌
+		//初始连接
 		function start() {
-			$("#btn_start").hide();
-			$("#btn_out").show();
 			var es = new EventSource("ddz/start?userId=" + userId);
 			es.onmessage = function(event) {
 				alert(event.data);
 				// 				document.getElementById('push').innerHTML = event.data;
 			};
-			es.addEventListener('start', function(event) {//发牌成功后的回调函数
+			es.addEventListener('ready', function(event) {//发牌成功后的回调函数
 				$("#btn_out").hide();
 				var d = jQuery.parseJSON(event.data);
 				//三个玩家信息
@@ -86,7 +85,7 @@
 					// 显示信息
 					msg("叫地主：玩家" + d.callPalyer + "叫了" + d.landv + "分");
 					msg("游戏开始:" + d.landId + "是地主");
-					msg("地主牌是：")
+					msg("地主牌是："+d.lands)
 					msg("下一个行动玩家是：" + d.actionPlayerId);
 					//显示三位玩家的身份
 					if (d.landId == userId) {
@@ -120,10 +119,10 @@
 			es.addEventListener('outPoker', function(event) {//出牌后的回调函数
 				var d = jQuery.parseJSON(event.data);
 				// 显示信息
-				if (d.outPoker == null||""==d.outPoker){
+				if (d.outPoker == null || "" == d.outPoker) {
 					msg("出牌：" + d.outPokerMan + "不出");
 					notOutCount++;
-				}else{
+				} else {
 					msg("出牌：" + d.outPokerMan + "出了" + d.outPoker);
 					notOutCount = 0;
 				}
@@ -131,9 +130,9 @@
 					msg("下一个行动玩家是：" + d.actionPlayerId);
 					//如果行动人为本人，则显示出牌按钮 
 					if (d.actionPlayerId == userId) {//如果先手玩家是本人，则显示出牌按钮，附加地主牌
-						if(notOutCount<2){
+						if (notOutCount < 2) {
 							showOutDiv();
-						}else{
+						} else {
 							showOutDiv2();
 						}
 					}
@@ -145,6 +144,22 @@
 				msg("游戏结束：" + (d.result == 0 ? "地主胜利" : "农民胜利"));
 				msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
 						+ (userRole == d.result ? "赢了" : "输了"));
+				$("#btn_start").show();
+			});
+		}
+		//准备
+		function ready() {
+			$.ajax({
+				url : "/ddz_server/ddz/ready?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+					$("#btn_start").hide();
+					$("#btn_out").show();
+				}
 			});
 		}
 		//显示叫分按钮
@@ -206,6 +221,7 @@
 				}
 			});
 		}
+		//不出
 		function notOutPoker() {
 			$.ajax({
 				url : "/ddz_server/ddz/notOutPoker?userId=" + userId,
@@ -294,6 +310,8 @@
 		}
 		// 		var x = idToPoker(31);
 		// 		alert(x.color +x.name);
+		//初始连接
+		start();
 	</script>
 </body>
 </html>

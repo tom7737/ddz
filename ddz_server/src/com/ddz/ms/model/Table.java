@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 /**
  * 桌子*
@@ -46,7 +47,8 @@ public class Table implements Serializable {
 	/**
 	 * 地主分记录
 	 */
-	private List<Map<String, Integer>> landvLog;// = new HashMap<String, Integer>();
+	private List<Map<String, Integer>> landvLog;// = new HashMap<String,
+												// Integer>();
 	/**
 	 * 地主玩家编号
 	 */
@@ -58,19 +60,26 @@ public class Table implements Serializable {
 	/**
 	 * 出牌记录
 	 */
-	private List<Map<String,Integer[]>> outPokerLog = new ArrayList<Map<String,Integer[]>>();
+	private List<Map<String, Integer[]>> outPokerLog = new ArrayList<Map<String, Integer[]>>();
 
 	/**
 	 * 游戏结果0地主胜利1农民胜利
 	 */
 	private Integer results;
-	
-	public Integer getResults() {
-		return results;
-	}
 
-	public void setResults(Integer results) {
-		this.results = results;
+	/**
+	 * 炸弹数
+	 */
+	private Integer bombCount = 0;
+
+	/**
+	 * 桌子初始化
+	 * 
+	 * @param userId
+	 * @return
+	 */
+	public String init(List<String> userId) {
+		return null;
 	}
 
 	/**
@@ -95,11 +104,30 @@ public class Table implements Serializable {
 		return true;
 	}
 
-	public int getStatus() {
+	public Integer getBombCount() {
+		return bombCount;
+	}
+
+	public void incBombCount() {
+		this.bombCount++;
+	}
+	public void setBombCount(Integer bombCount) {
+		this.bombCount = bombCount;
+	}
+
+	public Integer getResults() {
+		return results;
+	}
+
+	public void setResults(Integer results) {
+		this.results = results;
+	}
+
+	public Integer getStatus() {
 		return status;
 	}
 
-	public void setStatus(int status) {
+	public void setStatus(Integer status) {
 		this.status = status;
 	}
 
@@ -180,7 +208,6 @@ public class Table implements Serializable {
 			this.initPoints = initPoints;
 		}
 	}
-
 
 	public List<Map<String, Integer[]>> getOutPokerLog() {
 		return outPokerLog;

@@ -9,13 +9,13 @@ import java.io.Serializable;
  * 
  */
 public class Msg implements Serializable {
-	
-	public static final String START = "start";
+
+	public static final String READY = "ready";
 	public static final String SELECT_LAND = "selectLand";
 	public static final String OUT_POKER = "outPoker";
 	public static final String GAME_OVER = "gameOver";
 
-	private static final long serialVersionUID = 478923748923L;
+	// private static final long serialVersionUID = 478923748923L;
 
 	private String userId;
 

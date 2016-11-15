@@ -14,7 +14,10 @@ public class RedisMsgQuene {
 	private RedisMsgQuene() {
 
 	}
-
+	/**
+	 * 添加消息
+	 * @param msg
+	 */
 	public static void push(Msg msg) {
 		try {
 			jedis.lpush(REDISMSGQUENE, ObjectUtil.objectToBytes(msg));
@@ -22,7 +25,10 @@ public class RedisMsgQuene {
 			e.printStackTrace();
 		}
 	}
-
+	/**
+	 * 取出消息
+	 * @return
+	 */
 	public static Msg pop() {
 		byte[] rpop = jedis.rpop(REDISMSGQUENE);
 		if (rpop == null) {

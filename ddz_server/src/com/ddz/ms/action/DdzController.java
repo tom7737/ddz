@@ -22,23 +22,27 @@ import com.ddz.ms.model.Msg;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
 import com.ddz.ms.model.Table;
+import com.ddz.ms.service.SeatService;
 import com.ddz.ms.service.TableService;
+import com.ddz.ms.service.impl.SeatServiceImpl;
 import com.ddz.ms.service.impl.TableServiceImpl;
-import com.ddz.ms.util.IsBigger;
 import com.ddz.ms.util.PokerType;
 import com.jfinal.core.Controller;
 import com.jfinal.kit.JsonKit;
 import com.jfinal.plugin.activerecord.Record;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
 
 /**
  * 桌子控制类*
- * 
+ *  FIXME 换桌，计时器
  * @author tom
  * @date 2016-10-23
  */
 public class DdzController extends Controller {
 
 	private TableService tableService = new TableServiceImpl();
+	private SeatService seatService = new SeatServiceImpl();
 
 	/**
 	 * 注册
@@ -112,7 +116,6 @@ public class DdzController extends Controller {
 			System.out.println(tableKey);
 			Table table = tables.get(tableKey);
 			List<Player> players = randomPoker(table);
-			table.setTableId(tableKey);
 			// 通知前端
 			for (Player player : players) {
 				Record re = new Record();
@@ -142,11 +145,17 @@ public class DdzController extends Controller {
 				String json = JsonKit.toJson(re);
 				// 添加到消息队列
 				RedisMsgQuene
-						.push(new Msg(player.getUserId(), Msg.START, json));
+						.push(new Msg(player.getUserId(), Msg.READY, json));
 			}
 		}
 	}
 
+	/**
+	 * 发牌
+	 * 
+	 * @param table
+	 * @return
+	 */
 	private List<Player> randomPoker(Table table) {
 		List<Poker> pokers = PokerFactory.getInstance();
 		List<Player> players = table.getPlayers();
@@ -181,6 +190,57 @@ public class DdzController extends Controller {
 	/**
 	 * 准备
 	 */
+	public void ready() {
+		String userId = this.getPara("userId");
+		seatService.inSeat(userId);
+		seatService.ready(userId);
+		DBObject dbObject = seatService.getByUserId(userId);
+		if (dbObject != null && dbObject.get("tableNum") != null) {
+			Integer tableNum = Integer.valueOf(dbObject.get("tableNum")
+					.toString());
+			DBCursor dbCursor = seatService.getByTableNum(tableNum);
+			List<String> userIds = new ArrayList<String>();
+			while (dbCursor.hasNext()) {// 判断桌上玩家是否都已准备，如果有未准备的则直接返回
+				DBObject next = dbCursor.next();
+				if (next.get("userId") == null) {
+					renderNull();
+					return;
+				}
+				Object isReady = next.get("isReady");
+				if (isReady == null || !(Boolean) isReady) {
+					renderNull();
+					return;
+				}
+				userIds.add(next.get("userId").toString());
+			}
+			if (userIds.size() != 3) {
+				renderNull();
+				return;
+			}
+			// 初始化桌子
+			Table table = new Table();
+			tableKey = UUID.randomUUID().toString();
+			table.setTableId(tableKey);
+			for (String string : userIds) {
+				Player player = new Player();
+				player.setUserId(string);
+				table.inTable(player);
+				// 添加用户和桌子的关系
+				user_table.put(string, tableKey);
+			}
+			tables.put(tableKey, table);
+			// 启动线程执行后续的工作
+			Thread handler = new Thread(new HandlerThread());
+			handler.start();
+		}
+
+		renderNull();
+		return;
+	}
+
+	/**
+	 * 建立连接
+	 */
 	public void start() {
 		String userId = this.getPara("userId");
 		if (userId == null)
@@ -189,7 +249,7 @@ public class DdzController extends Controller {
 			renderNull();
 			return;
 		}
-		inTable(userId);
+		// inTable(userId);
 		// 初始化HTML5消息推送器
 		HttpServletResponse res = this.getResponse();
 		res.setContentType("text/event-stream");
@@ -360,21 +420,36 @@ public class DdzController extends Controller {
 		}
 		String pokerType = PokerType.pokerType(Poker.pokerFormatItoL(pokerIds));
 		// 判断出牌是否符合规则
-//		if (PokerType.ERROR.equals(pokerType)) {
-//			renderText("出的牌不符合规则");
-//			return;
-//		}
-//		if (!IsBigger.isBigger(table.getOutPokerLog(), pokerIds)) {
-//			renderText("出的牌不符合规则");
-//			return;
-//		}
-		// 判断是不是炸弹，如果是炸弹则分数翻倍
+		// if (PokerType.ERROR.equals(pokerType)) {
+		// renderText("出的牌不符合规则");
+		// return;
+		// }
+		// if (!IsBigger.isBigger(table.getOutPokerLog(), pokerIds)) {
+		// renderText("出的牌不符合规则");
+		// return;
+		// }
+
+		List<Player> players = table.getPlayers();
+		// 验证要出的牌是否在手牌中
+		for (Player player : players) {
+			if (player.getUserId().equals(userId)) {// 找到出牌者
+				List<Integer> ltoI = Arrays.asList(Poker.pokerFormatLtoI(player
+						.getPokers()));// 手牌
+				for (Integer poker : l_pokerIds) {
+					if (!ltoI.contains(poker)) {
+						renderText("没有相应的手牌");// 如果循环对比下来没有找到对应的手牌，则说明手牌中没有这张要出的牌
+						return;
+					}
+				}
+				break;
+			}
+		}
+		// 判断是不是炸弹，如果是则炸弹数加一
 		if (PokerType.ZHADAN.equals(pokerType)
 				|| PokerType.WANGZHA.equals(pokerType)) {
-			table.setInitPoints(table.getInitPoints() * 2);
+			table.incBombCount();
 		}
 		// 将出的牌从手牌中转移到弃牌区
-		List<Player> players = table.getPlayers();
 		for (Player player : players) {
 			if (player.getUserId().equals(userId)) {
 				List<Poker> pokers_temp = player.getPokers();
@@ -401,8 +476,8 @@ public class DdzController extends Controller {
 		for (Player player : players) {
 			if (player.getUserId().equals(userId)
 					&& player.getPokers().size() == 0) {
-				table.setStatus(0);// 牌桌状态改为空闲
 				table.setActionPlayerId(null);// 行动人制空
+				table.setStatus(0);// 牌桌状态改为空闲
 				// 记录游戏结果
 				if (player.isIsland()) {// 判断出完牌的这个人是不是地主
 					table.setResults(0);
@@ -472,7 +547,6 @@ public class DdzController extends Controller {
 		re.set("status", table.getStatus());// 牌桌状态
 		String json = JsonKit.toJson(re);
 		for (Player player : table.getPlayers()) {
-			// outPokerMsg.put(player.getName(), tableKey);
 			RedisMsgQuene
 					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
@@ -495,17 +569,28 @@ public class DdzController extends Controller {
 			}
 			System.out.print("游戏结束");
 			Table table = tables.get(tableKey);
+			List<Player> players = table.getPlayers();
+			// 取消玩家的准备状态
+			for (Player player : players) {
+				seatService.cancelReady(player.getUserId());
+				// 解除用户和桌子的关系
+				user_table.remove(player.getUserId());
+			}
 			// 保存对局记录
-			 tableService.saveLog(table);
+			tableService.saveLog(table);
 			// 通知前端
 			int result = table.getResults();
 			Record re = new Record();
 			re.set("result", result);// 结果
+			re.set("initPoints", table.getInitPoints());// 底分
+			re.set("bombCount", table.getBombCount());// 炸弹数
 			String json = JsonKit.toJson(re);
 			for (Player player : table.getPlayers()) {
 				RedisMsgQuene.push(new Msg(player.getUserId(), Msg.GAME_OVER,
 						json));
 			}
+			// 从牌局列表中删除牌局
+			tables.remove(tableKey);
 		}
 	}
 
@@ -513,15 +598,21 @@ public class DdzController extends Controller {
 	 * 离开桌子
 	 */
 	public void outTable() {
-		// TODO 正在游戏时不能退出
+		// 正在游戏时不能退出
 		String userId = this.getPara("userId");
-		if (userIds.contains(userId)) {
-			// 从桌上退出
-			userIds.remove(userId);
-			System.out.println(userId + "退出");
+		String tableKey = user_table.get(userId);
+		if (tableKey == null) {
+			renderNull();
+			return;
 		}
+		Table table = tables.get(tableKey);
+		if (table == null || table.getStatus() != 0) {
+			renderNull();
+			return;
+		}
+		seatService.exit(userId);
+		System.out.println(userId + "退出");
 		// 通知客户端
-
 		renderNull();
 	}
 }
