@@ -4,7 +4,6 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.ddz.ms.model.Table;
 import com.ddz.ms.service.SeatService;
 import com.jfinal.ext.plugin.monogodb.MongoKit;
 import com.mongodb.BasicDBObject;

@@ -15,13 +15,23 @@ public class Msg implements Serializable {
 	public static final String OUT_POKER = "outPoker";
 	public static final String GAME_OVER = "gameOver";
 
-	// private static final long serialVersionUID = 478923748923L;
+	private static final long serialVersionUID = 1118923748923L;
 
 	private String userId;
 
 	private String event;
 
 	private String data;
+
+	private Integer timeDelay;
+
+	public Integer getTimeDelay() {
+		return timeDelay;
+	}
+
+	public void setTimeDelay(Integer timeDelay) {
+		this.timeDelay = timeDelay;
+	}
 
 	public String getUserId() {
 		return userId;
@@ -58,6 +68,15 @@ public class Msg implements Serializable {
 		this.userId = userId;
 		this.event = event;
 		this.data = data;
+		this.timeDelay = 0;
+	}
+
+	public Msg(String userId, String event, String data, Integer timeDelay) {
+		super();
+		this.userId = userId;
+		this.event = event;
+		this.data = data;
+		this.timeDelay = timeDelay;
 	}
 
 	public Msg() {

@@ -5,21 +5,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
 
 /**
- * 桌子*
+ * 牌局
  * 
  * @author tom
  * @date 2016-10-22
  */
-public class Table implements Serializable {
+public class Game implements Serializable {
 
 	private static final long serialVersionUID = 773123742983L;
 	/**
 	 * 标识列
 	 */
-	private String tableId;
+	private String gameId;
 	/**
 	 * 桌子编号
 	 */
@@ -92,12 +91,12 @@ public class Table implements Serializable {
 	}
 
 	/**
-	 * 玩家上桌
+	 * 玩家进入牌局（这一局游戏）
 	 * 
 	 * @param player
 	 *            玩家对象
 	 */
-	public boolean inTable(Player player) {
+	public boolean inGame(Player player) {
 		if (players.size() >= 3)
 			return false;
 		players.add(player);
@@ -111,6 +110,7 @@ public class Table implements Serializable {
 	public void incBombCount() {
 		this.bombCount++;
 	}
+
 	public void setBombCount(Integer bombCount) {
 		this.bombCount = bombCount;
 	}
@@ -131,12 +131,12 @@ public class Table implements Serializable {
 		this.status = status;
 	}
 
-	public String getTableId() {
-		return tableId;
+	public String getGameId() {
+		return gameId;
 	}
 
-	public void setTableId(String tableId) {
-		this.tableId = tableId;
+	public void setGameId(String gameId) {
+		this.gameId = gameId;
 	}
 
 	public List<Player> getPlayers() {
@@ -171,7 +171,7 @@ public class Table implements Serializable {
 		this.tableNum = tableNum;
 	}
 
-	public Table() {
+	public Game() {
 		super();
 	}
 
