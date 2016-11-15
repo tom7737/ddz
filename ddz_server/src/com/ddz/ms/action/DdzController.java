@@ -34,8 +34,8 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 
 /**
- * 桌子控制类*
- *  FIXME 换桌，计时器
+ * 桌子控制类* FIXME 换桌，计时器
+ * 
  * @author tom
  * @date 2016-10-23
  */
@@ -56,10 +56,6 @@ public class DdzController extends Controller {
 	 */
 	private static Map<String, Table> tables = new HashMap<String, Table>();
 	/**
-	 * 用户编号集合，模拟凑桌人数
-	 */
-	private static List<String> userIds = new LinkedList<String>();
-	/**
 	 * 当前桌子的编号
 	 */
 	private String tableKey;
@@ -67,42 +63,6 @@ public class DdzController extends Controller {
 	 * 保存用户和桌子的关系
 	 */
 	private static Map<String, String> user_table = new HashMap<String, String>();
-
-	/**
-	 * 玩家上桌，如果凑齐3人，则创建新桌子。
-	 * 
-	 * @param userId
-	 */
-	private void inTable(String userId) {
-		if (userIds.size() >= 2) {
-			// 取出userIds的值，并把userIds初始化
-			String userId1 = userIds.get(0);
-			String userId2 = userIds.get(1);
-			userIds = new LinkedList<String>();
-			// 初始化桌子
-			Table table = new Table();
-			Player p1 = new Player();
-			p1.setUserId(userId1);
-			Player p2 = new Player();
-			p2.setUserId(userId2);
-			Player p3 = new Player();
-			p3.setUserId(userId);
-			table.inTable(p1);
-			table.inTable(p2);
-			table.inTable(p3);
-			tableKey = UUID.randomUUID().toString();
-			tables.put(tableKey, table);
-			// 添加用户和桌子的关系
-			user_table.put(userId, tableKey);
-			user_table.put(userId1, tableKey);
-			user_table.put(userId2, tableKey);
-			// 启动线程执行后续的工作
-			Thread handler = new Thread(new HandlerThread());
-			handler.start();
-		} else {
-			userIds.add(userId);
-		}
-	}
 
 	/**
 	 * 处理牌桌初始化工作
@@ -219,6 +179,7 @@ public class DdzController extends Controller {
 			}
 			// 初始化桌子
 			Table table = new Table();
+			table.setTableNum(tableNum);
 			tableKey = UUID.randomUUID().toString();
 			table.setTableId(tableKey);
 			for (String string : userIds) {
@@ -245,7 +206,7 @@ public class DdzController extends Controller {
 		String userId = this.getPara("userId");
 		if (userId == null)
 			userId = UUID.randomUUID().toString();
-		if (userIds.contains(userId) || user_table.containsKey(userId)) {
+		if (user_table.containsKey(userId)) {
 			renderNull();
 			return;
 		}
