@@ -1,12 +1,6 @@
 package com.ddz.ms.util;
 
 import java.io.IOException;
-import java.net.UnknownHostException;
-
-import com.jfinal.ext.plugin.monogodb.MongoKit;
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBCollection;
-import com.mongodb.MongoClient;
 
 public class Test {
 	public static void main(String[] args) throws Exception {
@@ -15,8 +9,8 @@ public class Test {
 		// BasicDBObject dbobj = new BasicDBObject();
 		// dbobj.put("username", "tom");
 		// collection.insert(dbobj);
-		Test t = new Test();
-		t.test();
+//		Test t = new Test();
+//		t.test();
 
 	}
 	//线程中断的测试程序

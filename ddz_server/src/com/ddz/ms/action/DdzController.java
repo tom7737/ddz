@@ -14,13 +14,15 @@ import java.util.UUID;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.ddz.ms.clock.ClockTask;
+import com.ddz.ms.clock.ClockTaskControl;
 import com.ddz.ms.factory.PokerFactory;
 import com.ddz.ms.init.InitListener;
-import com.ddz.ms.init.RedisMsgQuene;
 import com.ddz.ms.model.Game;
 import com.ddz.ms.model.Msg;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
+import com.ddz.ms.rdata.RedisMsgQuene;
 import com.ddz.ms.rdata.UserGameData;
 import com.ddz.ms.service.GameService;
 import com.ddz.ms.service.SeatService;
@@ -35,7 +37,7 @@ import com.mongodb.DBObject;
 
 /**
  * 桌子控制类* FIXME
- * 换桌4，计时器5，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，消息队列添加延时功能2ok,断线重连7，监听断线6（使用WebSocket）
+ * 换桌4ok，计时器5，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，消息队列添加延时功能2ok,断线重连7，监听断线6（使用WebSocket）
  * 
  * @author tom
  * @date 2016-10-23
@@ -98,6 +100,8 @@ public class DdzController extends Controller {
 	 */
 	public void ready() {
 		String userId = this.getPara("userId");
+		// FIXME 关闭用户的其他闹钟任务，最好写一个拦截器实现
+		ClockTaskControl.sopClockTask(userId);
 		seatService.inSeat(userId);
 		seatService.ready(userId);
 		DBObject dbObject = seatService.getByUserId(userId);
@@ -458,6 +462,8 @@ public class DdzController extends Controller {
 	public void changeTable() {
 		// 用户在牌局中时不能换桌
 		String userId = this.getPara("userId");
+		// FIXME 关闭用户的其他闹钟任务，最好写一个拦截器实现
+				ClockTaskControl.sopClockTask(userId);
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		if (gameId != null) {
 			renderNull();
@@ -512,6 +518,13 @@ public class DdzController extends Controller {
 			}
 			// 从牌局列表中删除牌局
 			games.remove(gameId);
+			// 添加定时器，30秒内未准备则退出牌桌
+			for (Player player : players) {
+				Map<String, String> parms2 = new HashMap<String, String>();
+				parms2.put("userId", player.getUserId());
+				ClockTaskControl.createClockTask(player.getUserId(), new ClockTask(
+						ClockTask.URL_DDZ_OUTTABLE, parms2));
+			}
 		}
 	}
 

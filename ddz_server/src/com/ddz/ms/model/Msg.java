@@ -57,10 +57,11 @@ public class Msg implements Serializable {
 		this.data = data;
 	}
 
+
 	@Override
 	public String toString() {
 		return "Msg [userId=" + userId + ", event=" + event + ", data=" + data
-				+ "]";
+				+ ", timeDelay=" + timeDelay + "]";
 	}
 
 	public Msg(String userId, String event, String data) {

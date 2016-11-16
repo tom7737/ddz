@@ -79,6 +79,7 @@ public class SeatServiceImpl implements SeatService {
 		DBObject byUserId = getByUserId(userId);
 		if (byUserId == null) {
 			inSeat(userId);
+			ready(userId);
 			return;
 		}
 		exit(userId);// 退出原来的桌子
@@ -95,7 +96,7 @@ public class SeatServiceImpl implements SeatService {
 		ql.add(q1);
 		ql.add(q2);
 		q.put("$and", ql);
-//		System.out.println(q);
+		// System.out.println(q);
 		BasicDBObject o = new BasicDBObject();
 		BasicDBObject o2 = new BasicDBObject();
 		o2.put("userId", userId);

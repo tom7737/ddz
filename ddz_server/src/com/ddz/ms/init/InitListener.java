@@ -11,6 +11,7 @@ import redis.clients.jedis.Jedis;
 
 import com.ddz.common.redis.RedisClient;
 import com.ddz.ms.model.Msg;
+import com.ddz.ms.rdata.RedisMsgQuene;
 
 public class InitListener implements ServletContextListener {
 
@@ -22,6 +23,11 @@ public class InitListener implements ServletContextListener {
 	public void contextInitialized(final ServletContextEvent arg0) {
 		System.out.println("初始服务器");
 		Thread t = new Thread(new MsgThread());
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		t.start();
 
 	}

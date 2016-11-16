@@ -40,7 +40,7 @@ public class ObjectUtil {
 		ObjectInputStream sIn = new ObjectInputStream(in);
 		return sIn.readObject();
 	}
-	
+
 	/**
 	 * 将普通Object对象转换成mongodb的DBObject对象
 	 * 
@@ -51,5 +51,27 @@ public class ObjectUtil {
 		Gson gson = new Gson();
 		String json = gson.toJson(obj);
 		return (DBObject) JSON.parse(json);
+	}
+
+	/**
+	 * 将对象转化成json字符串
+	 * 
+	 * @param obj
+	 * @return
+	 */
+	public static String objectToJson(Object obj) {
+		Gson gson = new Gson();
+		return gson.toJson(obj);
+	}
+
+	/**
+	 * 将json字符串转化成对象
+	 * 
+	 * @param obj
+	 * @return
+	 */
+	public static <T> T jsonToObject(String json, Class<T> classOfT) {
+		Gson gson = new Gson();
+		return gson.fromJson(json, classOfT);
 	}
 }
