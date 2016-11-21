@@ -1,6 +1,7 @@
 package com.ddz.ms.rdata;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.ShardedJedis;
 
 import com.ddz.common.redis.RedisClient;
 import com.ddz.ms.model.Game;
@@ -8,7 +9,7 @@ import com.ddz.ms.util.ObjectUtil;
 
 public class GamesData {
 	private static final Jedis jedis = RedisClient.getJedis();
-
+	private static final ShardedJedis shardedJedis = RedisClient.getShardedJedis();
 	private static final byte[] GAMES = "games".getBytes();
 
 	private GamesData() {
@@ -24,7 +25,7 @@ public class GamesData {
 	}
 
 	public static Game hget(String gameId) {
-		byte[] rpop = jedis.hget(GAMES, gameId.getBytes());
+		byte[] rpop = shardedJedis.hget(GAMES, gameId.getBytes());
 		if (rpop == null) {
 			return null;
 		}

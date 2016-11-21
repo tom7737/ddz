@@ -5,7 +5,7 @@ import com.ddz.ms.util.HttpRequest;
 /**
  * 时钟线程抽象类.每个实现类中实现具体要做的事情
  * 
- * TODO 1、自动退出桌子
+ * TODO 1、自动退出桌子。2、自动不叫地主3、自动出牌
  * 
  * @author admin
  * 
@@ -37,7 +37,7 @@ public class ClockThread extends Thread {
 			System.out.println("开始工作");
 			someThing();
 		} else {
-			System.out.println("已经不需要我工作了");
+			System.out.println("已经不需要我这个闹钟工作了");
 		}
 	}
 

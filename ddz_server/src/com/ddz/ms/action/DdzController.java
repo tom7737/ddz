@@ -36,8 +36,8 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 
 /**
- * 桌子控制类* FIXME
- * 换桌4ok，计时器5，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，消息队列添加延时功能2ok,断线重连7，监听断线6（使用WebSocket）
+ * 桌子控制类* FIXME 换桌4ok，计时器5ok，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，
+ * 消息队列添加延时功能2ok ,断线重连8，监听断线7（使用WebSocket）,托管6
  * 
  * @author tom
  * @date 2016-10-23
@@ -53,7 +53,7 @@ public class DdzController extends Controller {
 	private static Map<String, Game> games = new HashMap<String, Game>();
 
 	/**
-	 * 注册
+	 * 注册接口
 	 */
 	public void reg() {
 
@@ -96,12 +96,12 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 准备
+	 * 准备接口
 	 */
 	public void ready() {
 		String userId = this.getPara("userId");
-		// FIXME 关闭用户的其他闹钟任务，最好写一个拦截器实现
-		ClockTaskControl.sopClockTask(userId);
+		// 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
 		seatService.inSeat(userId);
 		seatService.ready(userId);
 		DBObject dbObject = seatService.getByUserId(userId);
@@ -151,7 +151,7 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 建立连接
+	 * 建立连接接口
 	 */
 	public void start() {
 		String userId = this.getPara("userId");
@@ -183,7 +183,7 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 叫地主
+	 * 叫地主接口
 	 */
 	public void selectLand() {
 		// 获取用户ID，叫分值
@@ -200,6 +200,8 @@ public class DdzController extends Controller {
 			renderText("不是当前行动的玩家");
 			return;
 		}
+		// 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
 		// 记录叫分人和叫分值
 		List<Map<String, Integer>> landvLog = game.getLandvLog();
 		Map<String, Integer> landvs_temp = new HashMap<String, Integer>();
@@ -231,9 +233,8 @@ public class DdzController extends Controller {
 		re.set("landv", landv);// 叫分值
 		re.set("initPoints", game.getInitPoints());// 底分
 		re.set("status", game.getStatus());// 状态
-		// 开始游戏
 		// 判断桌子的状态是否为游戏中,显示地主牌和谁是地主
-		if (game.getStatus() == 2) {
+		if (game.getStatus() == 2) {// 开始游戏
 			re.set("lands", Poker.pokerFormatLtoI(game.getLands()));// 地主牌
 			re.set("landId", game.getLandId());// 地主ID
 		}
@@ -242,11 +243,62 @@ public class DdzController extends Controller {
 			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.SELECT_LAND,
 					json));
 		}
+		if (game.getStatus() == 2) {
+			setOutPokerClock(game);
+		} else {
+			setSelectLandClock(game);
+		}
+
 		renderNull();
 	}
 
 	/**
-	 * 开始打牌的准备工作
+	 * 为下一个叫地主的玩家设置一个闹钟任务
+	 * 
+	 * @param game
+	 */
+	private void setSelectLandClock(Game game) {
+		if (game.getActionPlayerId() == null)// 行动玩家为空则代表重新发牌，不需要设置闹钟任务了
+			return;
+		Map<String, String> parms = new HashMap<String, String>();
+		parms.put("userId", game.getActionPlayerId());
+		parms.put("landv", "0");
+		ClockTaskControl.createClockTask(game.getActionPlayerId(),
+				new ClockTask(ClockTask.URL_DDZ_SELECTLAND, parms));
+	}
+
+	/**
+	 * 为下一个出牌的玩家设置一个闹钟任务
+	 * 
+	 * @param game
+	 */
+	private void setOutPokerClock(Game game) {
+		if (game.getActionPlayerId() == null)// 行动玩家为空则代表游戏结束，不需要设置闹钟任务了
+			return;
+		Map<String, String> parms = new HashMap<String, String>();
+		parms.put("userId", game.getActionPlayerId());
+		if (isMustOutPoker(game.getOutPokerLog())) {// 如果不是必须要出牌则不出
+			String outPoker = null;
+			for (Player player : game.getPlayers()) {
+				if (player.getUserId().equals(game.getActionPlayerId())) {
+					Poker poker = player.getPokers().get(
+							player.getPokers().size() - 1);// 选取最后一张牌（最小的牌）
+					outPoker = String.valueOf(poker.getId());
+					break;
+				}
+			}
+			parms.put("pokers", outPoker);
+			ClockTaskControl.createClockTask(game.getActionPlayerId(),
+					new ClockTask(ClockTask.URL_DDZ_OUTPOKER, parms));
+		} else {
+			ClockTaskControl.createClockTask(game.getActionPlayerId(),
+					new ClockTask(ClockTask.URL_DDZ_NOTOUTPOKER, parms));
+		}
+
+	}
+
+	/**
+	 * 开始出牌前的准备工作
 	 * 
 	 * @param game
 	 * @param landId
@@ -289,7 +341,7 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 出牌
+	 * 出牌接口
 	 */
 	public void outPoker() {
 		String userId = this.getPara("userId");
@@ -333,6 +385,8 @@ public class DdzController extends Controller {
 				break;
 			}
 		}
+		// FIXME 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
 		// 判断是不是炸弹，如果是则炸弹数加一
 		if (PokerType.ZHADAN.equals(pokerType)
 				|| PokerType.WANGZHA.equals(pokerType)) {
@@ -391,11 +445,12 @@ public class DdzController extends Controller {
 			RedisMsgQuene
 					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
+		setOutPokerClock(game);
 		renderNull();
 	}
 
 	/**
-	 * 不出
+	 * 不出接口
 	 */
 	public void notOutPoker() {
 		String userId = this.getPara("userId");
@@ -403,22 +458,12 @@ public class DdzController extends Controller {
 		Game game = games.get(gameId);
 		List<Map<String, Integer[]>> outPokerLog = game.getOutPokerLog();
 		// 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
-		if (outPokerLog == null || outPokerLog.size() == 0) {
+		if (isMustOutPoker(outPokerLog)) {
 			renderText("你必须出牌");
 			return;
-		} else if (outPokerLog.size() > 2) {
-			Map<String, Integer[]> map = outPokerLog
-					.get(outPokerLog.size() - 1);
-			Integer[] integers = map.get(map.keySet().iterator().next());
-			Map<String, Integer[]> map2 = outPokerLog
-					.get(outPokerLog.size() - 2);
-			Integer[] integers2 = map2.get(map2.keySet().iterator().next());
-			if (integers == null && integers2 == null) {
-				renderText("你必须出牌");
-				return;
-			}
 		}
-
+		// FIXME 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
 		// 记录出牌结果
 		Map<String, Integer[]> userId_outPoker = new HashMap<String, Integer[]>();
 		userId_outPoker.put(userId, null);
@@ -436,11 +481,36 @@ public class DdzController extends Controller {
 			RedisMsgQuene
 					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
+		setOutPokerClock(game);
 		renderNull();
 	}
 
 	/**
-	 * 离开桌子
+	 * 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
+	 * 
+	 * @param outPokerLog
+	 * @return
+	 */
+	private boolean isMustOutPoker(List<Map<String, Integer[]>> outPokerLog) {
+		boolean mustOutPoker = false;
+		if (outPokerLog == null || outPokerLog.size() == 0) {
+			mustOutPoker = true;
+		} else if (outPokerLog.size() > 2) {
+			Map<String, Integer[]> map = outPokerLog
+					.get(outPokerLog.size() - 1);
+			Integer[] integers = map.get(map.keySet().iterator().next());
+			Map<String, Integer[]> map2 = outPokerLog
+					.get(outPokerLog.size() - 2);
+			Integer[] integers2 = map2.get(map2.keySet().iterator().next());
+			if (integers == null && integers2 == null) {
+				mustOutPoker = true;
+			}
+		}
+		return mustOutPoker;
+	}
+
+	/**
+	 * 离开桌子接口
 	 */
 	public void outTable() {
 		// 用户在牌局中时不能退出
@@ -457,18 +527,18 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 换桌
+	 * 换桌接口
 	 */
 	public void changeTable() {
 		// 用户在牌局中时不能换桌
 		String userId = this.getPara("userId");
-		// FIXME 关闭用户的其他闹钟任务，最好写一个拦截器实现
-				ClockTaskControl.sopClockTask(userId);
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		if (gameId != null) {
 			renderNull();
 			return;
 		}
+		// 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
 		seatService.changeSeat(userId);
 		// 通知客户端
 		renderNull();
@@ -522,8 +592,8 @@ public class DdzController extends Controller {
 			for (Player player : players) {
 				Map<String, String> parms2 = new HashMap<String, String>();
 				parms2.put("userId", player.getUserId());
-				ClockTaskControl.createClockTask(player.getUserId(), new ClockTask(
-						ClockTask.URL_DDZ_OUTTABLE, parms2));
+				ClockTaskControl.createClockTask(player.getUserId(),
+						new ClockTask(ClockTask.URL_DDZ_OUTTABLE, parms2));
 			}
 		}
 	}
@@ -604,6 +674,8 @@ public class DdzController extends Controller {
 				RedisMsgQuene
 						.push(new Msg(player.getUserId(), Msg.READY, json));
 			}
+			// 为下一个叫地主的玩家设置一个闹钟任务
+			setSelectLandClock(game);
 		}
 	}
 }

@@ -51,7 +51,7 @@
 				// 				document.getElementById('push').innerHTML = event.data;
 			};
 			es.addEventListener('ready', function(event) {//发牌成功后的回调函数
-// 				$("#btn_out").hide();
+				// 				$("#btn_out").hide();
 				$("#btn_change").hide();
 				var d = jQuery.parseJSON(event.data);
 				//三个玩家信息
@@ -87,7 +87,7 @@
 					// 显示信息
 					msg("叫地主：玩家" + d.callPalyer + "叫了" + d.landv + "分");
 					msg("游戏开始:" + d.landId + "是地主");
-					msg("地主牌是："+d.lands)
+					msg("地主牌是：" + d.lands)
 					msg("下一个行动玩家是：" + d.actionPlayerId);
 					//显示三位玩家的身份
 					if (d.landId == userId) {
@@ -146,6 +146,7 @@
 				msg("游戏结束：" + (d.result == 0 ? "地主胜利" : "农民胜利"));
 				msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
 						+ (userRole == d.result ? "赢了" : "输了"));
+				$("button").hide();
 				$("#btn_start").show();
 				$("#btn_change").show();
 			});
@@ -160,8 +161,7 @@
 						msg(data);
 						return;
 					}
-					$("#btn_start").hide();
-					//$("#btn_out").show();
+					$("button").hide();
 					$("#btn_change").show();
 				}
 			});
@@ -176,19 +176,14 @@
 						msg(data);
 						return;
 					}
-					$("#btn_start").hide();
-					//$("#btn_out").show();
+					$("button").hide();
 					$("#btn_change").show();
 				}
 			});
 		}
 		//显示叫分按钮
 		function showSelectLand(v) {
-			$("#selectLand").hide();
-			$("#btn_selectLand0").hide();
-			$("#btn_selectLand1").hide();
-			$("#btn_selectLand2").hide();
-			$("#btn_selectLand3").hide();
+			$("button").hide();
 			if (v >= 3 || v < 0)
 				return;
 			$("#selectLand").show();
@@ -203,12 +198,14 @@
 		}
 		//显示出牌按钮和不出按钮
 		function showOutDiv() {
+			$("button").hide();
 			$("#out_div").show();
 			$("#btn_out_poker").show();
 			$("#btn_not_out_poker").show();
 		}
 		//只显示出牌按钮
 		function showOutDiv2() {
+			$("button").hide();
 			$("#out_div").show();
 			$("#btn_out_poker").show();
 			$("#btn_not_out_poker").hide();
@@ -273,8 +270,7 @@
 				type : "post",
 				success : function() {
 					msg("退出");
-// 					$("#btn_out").hide();
-					$("#btn_change").hide();
+					$("button").hide();
 					$("#btn_start").show();
 				}
 			});

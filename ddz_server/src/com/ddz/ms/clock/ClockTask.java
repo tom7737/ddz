@@ -18,6 +18,9 @@ public class ClockTask {
 	 * 退出桌子
 	 */
 	public static final String URL_DDZ_OUTTABLE = "/ddz/outTable";
+	public static final String URL_DDZ_SELECTLAND = "/ddz/selectLand";
+	public static final String URL_DDZ_OUTPOKER = "/ddz/outPoker";
+	public static final String URL_DDZ_NOTOUTPOKER = "/ddz/notOutPoker";
 	public static final String METHOD_GET = "GET";
 	public static final String METHOD_POST = "POST";
 	private Integer timeDelay = 5000;// FIXME 延时时间，默认30秒.测试时为5秒

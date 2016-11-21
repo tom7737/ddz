@@ -30,7 +30,7 @@ public class RedisClientTest {
 
 	public static void main(String[] args) {
 		new RedisClientTest().show();
-		
+
 	}
 
 	/**
@@ -39,11 +39,11 @@ public class RedisClientTest {
 	private void initialPool() {
 		// 池基本配置
 		JedisPoolConfig config = new JedisPoolConfig();
-		config.setMaxActive(20);
-		config.setMaxIdle(5);
-		config.setMaxWait(1000l);
-		config.setTestOnBorrow(false);
-		jedisPool = new JedisPool(config, "localhost", 6379);
+		 config.setMaxActive(20);
+		 config.setMaxIdle(5);
+		 config.setMaxWait(1000l);
+		 config.setTestOnBorrow(false);
+		 jedisPool = new JedisPool(config, "localhost", 6379);
 	}
 
 	/**
@@ -52,21 +52,21 @@ public class RedisClientTest {
 	private void initialShardedPool() {
 		// 池基本配置
 		JedisPoolConfig config = new JedisPoolConfig();
-		config.setMaxActive(20);
-		config.setMaxIdle(5);
-		config.setMaxWait(1000l);
-		config.setTestOnBorrow(false);
+		 config.setMaxActive(20);
+		 config.setMaxIdle(5);
+		 config.setMaxWait(1000l);
+		 config.setTestOnBorrow(false);
 		// slave链接
 		List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>();
 		shards.add(new JedisShardInfo("localhost", 6379, "master"));
 		// 构造池
-		shardedJedisPool = new ShardedJedisPool(config, shards);
+		 shardedJedisPool = new ShardedJedisPool(config, shards);
 	}
 
 	public void show() {
 		// KeyOperate();
-//		StringOperate();
-		 ListOperate();
+		// StringOperate();
+		ListOperate();
 		// SetOperate();
 		// SortedSetOperate();
 		// HashOperate();

@@ -54,7 +54,7 @@ public class RedisClient {
 		JedisPoolConfig config = new JedisPoolConfig();
 		config.setMaxActive(20);
 		config.setMaxIdle(5);
-		config.setMaxWait(1000l);
+		config.setMaxWait(10000l);
 		config.setTestOnBorrow(false);
 		jedisPool = new JedisPool(config, JEDIS_POOL, JEDIS_PORT);
 	}
@@ -67,7 +67,7 @@ public class RedisClient {
 		JedisPoolConfig config = new JedisPoolConfig();
 		config.setMaxActive(20);
 		config.setMaxIdle(5);
-		config.setMaxWait(1000l);
+		config.setMaxWait(10000l);
 		config.setTestOnBorrow(false);
 		// slave链接
 		List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>();

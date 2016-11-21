@@ -29,7 +29,7 @@ public class ClockTaskControl {
 	 * 创建一个闹钟任务
 	 */
 	public static void createClockTask(String userId, ClockTask task) {
-		sopClockTask(userId);//先停止已有的闹钟
+		stopClockTask(userId);//先停止已有的闹钟
 		ClockThread t = new ClockThread(task);
 		map.put(userId, t);
 		t.start();
@@ -38,7 +38,7 @@ public class ClockTaskControl {
 	/**
 	 * 停止一个闹钟任务
 	 */
-	public static void sopClockTask(String userId) {
+	public static void stopClockTask(String userId) {
 		if (map.containsKey(userId))
 			map.get(userId).notNeedRun();
 	}
