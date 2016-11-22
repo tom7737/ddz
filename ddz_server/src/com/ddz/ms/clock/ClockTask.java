@@ -23,6 +23,9 @@ public class ClockTask {
 	public static final String URL_DDZ_NOTOUTPOKER = "/ddz/notOutPoker";
 	public static final String METHOD_GET = "GET";
 	public static final String METHOD_POST = "POST";
+	
+	private String userId;//用户ID
+	
 	private Integer timeDelay = 2000;// FIXME 延时时间，默认30秒.测试时为5秒
 
 	private String address = ADDRESS;// 执行任务的接口服务器地址
@@ -112,6 +115,14 @@ public class ClockTask {
 
 	public void setMethod(String method) {
 		this.method = method;
+	}
+
+	public String getUserId() {
+		return userId;
+	}
+
+	public void setUserId(String userId) {
+		this.userId = userId;
 	}
 
 }

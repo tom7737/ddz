@@ -9,19 +9,25 @@ import javax.servlet.ServletContextListener;
 
 import redis.clients.jedis.Jedis;
 
+import com.ddz.common.redis.JedisUtil;
 import com.ddz.common.redis.RedisClient;
 import com.ddz.ms.model.Msg;
 import com.ddz.ms.rdata.RedisMsgQuene;
+import com.ddz.ms.rdata.UserAutoData;
+import com.ddz.ms.rdata.UserGameData;
 
 public class InitListener implements ServletContextListener {
 
 	public void contextDestroyed(final ServletContextEvent arg0) {
-		// FIXME 清空redis内的 user_game数据和redis_msg_quene数据
-		System.out.println("关闭服务器");
+		// 清空redis内的 user_game数据、redis_msg_quene数据、user_auto数据
+		System.out.println("关闭服务器，清空redis数据");
+		RedisMsgQuene.empty();
+		UserGameData.empty();
+		UserAutoData.empty();
 	}
 
 	public void contextInitialized(final ServletContextEvent arg0) {
-		System.out.println("初始服务器");
+		System.out.println("初始消息队列服务");
 		Thread t = new Thread(new MsgThread());
 		try {
 			Thread.sleep(500);
@@ -115,21 +121,4 @@ public class InitListener implements ServletContextListener {
 		}
 	}
 
-	private Jedis jedis = RedisClient.getJedis();
-
-	public static void main(String[] args) {
-		InitListener l = new InitListener();
-		l.test();
-	}
-
-	public void test() {
-		// System.out.println(jedis.llen("1"));
-		// jedis.lpush("1", "tom","tom1","tom2");
-		// jedis.lpush("1", "tom1");
-		// jedis.lpush("1", "tom2");
-		// jedis.lpush("1", "tom3");
-		// if (jedis.llen("1") > 0) {
-		System.out.println(jedis.rpop("1"));
-		// }
-	}
 }

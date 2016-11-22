@@ -53,4 +53,10 @@ public class RedisMsgQuene {
 		}
 		return null;
 	}
+	/**
+	 * 清空消息队列
+	 */
+	public static void empty(){
+		jedis.del(REDISMSGQUENE);
+	}
 }

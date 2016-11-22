@@ -1,5 +1,6 @@
 package com.ddz.ms.clock;
 
+import com.ddz.ms.rdata.UserAutoData;
 import com.ddz.ms.util.HttpRequest;
 
 /**
@@ -26,16 +27,22 @@ public class ClockThread extends Thread {
 
 	public void run() {
 		System.out.println("开始计时");
+		Boolean auto = UserAutoData.isAuto(task.getUserId());
 		try {
-			sleep(task.getTimeDelay()); // 延迟时间
+			if (!auto) {
+				sleep(task.getTimeDelay()); // 延迟时间
+			}
 		} catch (InterruptedException e) {
 			System.out.println("hehe:" + e.getMessage());
 		}
-		System.out.println(task.getFullUrl() + task.getParmsString());
-		System.out.println(ClockTaskControl.map.size());
+		 System.out.println(task.getFullUrl() + task.getParmsString());
+		 System.out.println(ClockTaskControl.map.size());
 		if (needRun) {
 			System.out.println("开始工作");
 			someThing();
+			if (!auto) {
+				UserAutoData.inc(task.getUserId());
+			}
 		} else {
 			System.out.println("已经不需要我这个闹钟工作了");
 		}

@@ -74,4 +74,11 @@ public class UserGameData {
 	public static void hdel(String userId) {
 		jedis.delHSet(USER_GAME, userId.getBytes());
 	}
+
+	/**
+	 * 清空用户和牌局的关系
+	 */
+	public static void empty() {
+		jedis.del(USER_GAME);
+	}
 }

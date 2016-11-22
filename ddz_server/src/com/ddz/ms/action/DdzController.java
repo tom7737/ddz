@@ -23,6 +23,7 @@ import com.ddz.ms.model.Msg;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
 import com.ddz.ms.rdata.RedisMsgQuene;
+import com.ddz.ms.rdata.UserAutoData;
 import com.ddz.ms.rdata.UserGameData;
 import com.ddz.ms.service.GameService;
 import com.ddz.ms.service.SeatService;
@@ -139,6 +140,8 @@ public class DdzController extends Controller {
 				// 添加用户和桌子的关系
 				// user_game.put(string, gameId);
 				UserGameData.hset(string, gameId);
+				//初始化用户的托管状态
+				UserAutoData.init(string);
 			}
 			games.put(gameId, game);
 			// 启动线程执行后续的工作
@@ -545,6 +548,25 @@ public class DdzController extends Controller {
 	}
 
 	/**
+	 * 托管接口
+	 */
+	public void auto() {
+		String userId = this.getPara("userId");
+		// 将用户设置为托管状态
+		UserAutoData.setAuto(userId);
+		// TODO 如果用户正在行动中，则设置闹钟完成行动
+	}
+
+	/**
+	 * 取消托管接口
+	 */
+	public void cancelAuto() {
+		String userId = this.getPara("userId");
+		// 初始化用户的托管状态
+		UserAutoData.init(userId);
+	}
+
+	/**
 	 * 处理游戏结束工作，主要是等最后出牌信息发出后再重新发牌
 	 * 
 	 * @author tom
@@ -572,6 +594,8 @@ public class DdzController extends Controller {
 				seatService.cancelReady(player.getUserId());
 				// 解除用户和桌子的关系
 				UserGameData.hdel(player.getUserId());
+				// 解除用户的托管状态
+				UserAutoData.hdel(player.getUserId());
 			}
 			// 保存对局记录
 			gameService.saveLog(game);

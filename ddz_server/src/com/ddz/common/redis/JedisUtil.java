@@ -528,6 +528,7 @@ public class JedisUtil {
 		}
 		return false;
 	}
+
 	/**
 	 * 设置HashSet对象
 	 * 
@@ -578,6 +579,7 @@ public class JedisUtil {
 		}
 		return null;
 	}
+
 	/**
 	 * 获得HashSet对象
 	 * 
@@ -624,6 +626,7 @@ public class JedisUtil {
 		}
 		return count;
 	}
+
 	/**
 	 * 删除HashSet对象
 	 * 
@@ -695,6 +698,7 @@ public class JedisUtil {
 		}
 		return isExist;
 	}
+
 	/**
 	 * 判断key是否存在
 	 * 
@@ -1004,6 +1008,21 @@ public class JedisUtil {
 			returnResource(shardedJedis);
 		}
 		return defaultValue;
+	}
+
+	public boolean del(byte[] key) {
+		ShardedJedis shardedJedis = null;
+		try {
+			shardedJedis = shardedJedisPool.getResource();
+			shardedJedis.del(key);
+			return true;
+		} catch (Exception ex) {
+			logger.error("del error.", ex);
+			returnBrokenResource(shardedJedis);
+		} finally {
+			returnResource(shardedJedis);
+		}
+		return false;
 	}
 
 	public boolean del(String key) {
