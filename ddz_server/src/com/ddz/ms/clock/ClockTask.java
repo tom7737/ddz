@@ -26,7 +26,7 @@ public class ClockTask {
 	
 	private String userId;//用户ID
 	
-	private Integer timeDelay = 2000;// FIXME 延时时间，默认30秒.测试时为5秒
+	private Integer timeDelay = 30000;// FIXME 延时时间，默认30秒.测试时为5秒
 
 	private String address = ADDRESS;// 执行任务的接口服务器地址
 

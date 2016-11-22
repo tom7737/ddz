@@ -140,7 +140,7 @@ public class DdzController extends Controller {
 				// 添加用户和桌子的关系
 				// user_game.put(string, gameId);
 				UserGameData.hset(string, gameId);
-				//初始化用户的托管状态
+				// 初始化用户的托管状态
 				UserAutoData.init(string);
 			}
 			games.put(gameId, game);
@@ -218,11 +218,18 @@ public class DdzController extends Controller {
 			if (game.getInitPoints() > 0) {// 结束叫牌（开始游戏）
 				startGame(game);
 			} else {
+				game.setActionPlayerId(null);// 行动人制空
+				game.setStatus(0);// 牌桌状态改为空闲
+				// 另起线程完成游戏结束的工作
+				Thread t = new Thread(new GameOverThread(gameId));
+				t.start();
 				// 行动玩家置空
-				game.setActionPlayerId(null);
+				// game.setActionPlayerId(null);
 				// 重新发牌
-				Thread handler = new Thread(new AgainRandomPokerThread(gameId));
-				handler.start();
+				// Thread handler = new Thread(new
+				// AgainRandomPokerThread(gameId));
+				// handler.start();
+
 			}
 		} else {
 			// 行动人按顺序延后
@@ -423,7 +430,7 @@ public class DdzController extends Controller {
 					&& player.getPokers().size() == 0) {
 				game.setActionPlayerId(null);// 行动人制空
 				game.setStatus(0);// 牌桌状态改为空闲
-				// 记录游戏结果
+				// 设置游戏结果
 				if (player.isIsland()) {// 判断出完牌的这个人是不是地主
 					game.setResults(0);
 				} else {
@@ -554,7 +561,29 @@ public class DdzController extends Controller {
 		String userId = this.getPara("userId");
 		// 将用户设置为托管状态
 		UserAutoData.setAuto(userId);
-		// TODO 如果用户正在行动中，则设置闹钟完成行动
+		// 如果用户正在行动中，则设置闹钟完成行动
+		String gameId = UserGameData.hget(userId);
+		if (gameId == null) {
+			renderText("不在游戏中");
+			return;
+		}
+		Game game = games.get(gameId);
+		if (game.getActionPlayerId().equals(userId)) {// 判断是否为当前行动人
+			Integer status = game.getStatus();
+			if (status == 1) {
+				setSelectLandClock(game);
+			} else if (status == 2) {
+				setOutPokerClock(game);
+			}
+		}
+		// 通知前端
+		Record re = new Record();
+		re.set("userId", userId);// 托管的用户ID
+		String json = JsonKit.toJson(re);
+		for (Player player : game.getPlayers()) {
+			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.AUTO, json));
+		}
+		renderNull();
 	}
 
 	/**
@@ -562,8 +591,23 @@ public class DdzController extends Controller {
 	 */
 	public void cancelAuto() {
 		String userId = this.getPara("userId");
+		String gameId = UserGameData.hget(userId);
+		if (gameId == null) {
+			renderText("不在游戏中");
+			return;
+		}
+		Game game = games.get(gameId);
 		// 初始化用户的托管状态
 		UserAutoData.init(userId);
+		//  通知前端
+		Record re = new Record();
+		re.set("userId", userId);// 托管的用户ID
+		String json = JsonKit.toJson(re);
+		for (Player player : game.getPlayers()) {
+			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.CANCEL_AUTO,
+					json));
+		}
+		renderNull();
 	}
 
 	/**
@@ -600,7 +644,7 @@ public class DdzController extends Controller {
 			// 保存对局记录
 			gameService.saveLog(game);
 			// 通知前端
-			int result = game.getResults();
+			Integer result = game.getResults();
 			Record re = new Record();
 			re.set("result", result);// 结果
 			re.set("initPoints", game.getInitPoints());// 底分

@@ -14,6 +14,8 @@ public class Msg implements Serializable {
 	public static final String SELECT_LAND = "selectLand";
 	public static final String OUT_POKER = "outPoker";
 	public static final String GAME_OVER = "gameOver";
+	public static final String AUTO = "auto";
+	public static final String CANCEL_AUTO = "cancelAuto";
 
 	private static final long serialVersionUID = 1118923748923L;
 
@@ -56,7 +58,6 @@ public class Msg implements Serializable {
 	public void setData(String data) {
 		this.data = data;
 	}
-
 
 	@Override
 	public String toString() {

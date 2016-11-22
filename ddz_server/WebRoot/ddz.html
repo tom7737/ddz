@@ -15,6 +15,7 @@
 	<textarea rows="20" cols="100" id="msg_text" readonly="readonly"></textarea>
 	<br /> 本家：
 	<span id="userId"></span>
+	<a href="#" onclick="auto();" id="auto">托管</a>
 	<br />
 	<div id="pokers"></div>
 	<br>
@@ -72,6 +73,7 @@
 				}
 			});
 			es.addEventListener('selectLand', function(event) {//叫地主后的回调函数
+				$("button").hide();
 				var d = jQuery.parseJSON(event.data);
 				if (d.status == 1) {
 					// 显示信息
@@ -119,6 +121,7 @@
 				}
 			});
 			es.addEventListener('outPoker', function(event) {//出牌后的回调函数
+				$("button").hide();
 				var d = jQuery.parseJSON(event.data);
 				// 显示信息
 				if (d.outPoker == null || "" == d.outPoker) {
@@ -139,16 +142,71 @@
 						}
 					}
 				}
+				if (d.outPokerMan == userId) {
+					for ( var i = 0; i < d.outPoker.length; i++) {
+						$("#poker" + d.outPoker[i] + "").remove();// 删除手牌中出掉的牌
+					}
+				}
+
 			});
 			es.addEventListener('gameOver', function(event) {//出牌后的回调函数
 				var d = jQuery.parseJSON(event.data);
-				// 显示信息
-				msg("游戏结束：" + (d.result == 0 ? "地主胜利" : "农民胜利"));
-				msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
-						+ (userRole == d.result ? "赢了" : "输了"));
+				if (d.result == null) {
+					msg("游戏结束：无人叫地主，平局");
+				} else {
+					// 显示信息
+					msg("游戏结束：" + (d.result == 0 ? "地主胜利" : "农民胜利"));
+					msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
+							+ (userRole == d.result ? "赢了" : "输了"));
+				}
 				$("button").hide();
 				$("#btn_start").show();
 				$("#btn_change").show();
+				//初始托管按钮
+				$("#auto").attr("onclick", "auto();");
+				$("#auto").text("托管");
+			});
+			es.addEventListener("auto", function(event) {//托管回调函数
+				var d = jQuery.parseJSON(event.data);
+				msg("托管：" + d.userId + "进行了托管");
+				if (userId == d.userId) {
+					$("#auto").attr("onclick", "cancelAuto();");
+					$("#auto").text("取消托管");
+				}
+			});
+			es.addEventListener("cancelAuto", function(event) {//取消托管回调函数
+				var d = jQuery.parseJSON(event.data);
+				msg("托管：" + d.userId + "取消了托管");
+				if (userId == d.userId) {
+					$("#auto").attr("onclick", "auto();");
+					$("#auto").text("托管");
+				}
+			});
+		}
+		//取消托管
+		function cancelAuto() {
+			$.ajax({
+				url : "/ddz_server/ddz/cancelAuto?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+				}
+			});
+		}
+		//托管
+		function auto() {
+			$.ajax({
+				url : "/ddz_server/ddz/auto?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+				}
 			});
 		}
 		//换桌
@@ -231,10 +289,7 @@
 						msg(data);
 						return;
 					}
-					$("#out_div").hide();
-					for ( var i = 0; i < pokers.length; i++) {
-						$("#poker" + pokers[i] + "").remove();// 删除手牌中出掉的牌
-					}
+					$("button").hide();
 				}
 			});
 		}
@@ -329,6 +384,7 @@
 		// 		alert(x.color +x.name);
 		//初始连接
 		start();
+		$("#userId").text(userId);
 	</script>
 </body>
 </html>
