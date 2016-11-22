@@ -1,9 +1,6 @@
 package com.ddz.ms.rdata;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.ShardedJedis;
-
-import com.ddz.common.redis.RedisClient;
+import com.ddz.common.redis.JedisUtil;
 
 /**
  * 用户和牌局的关系
@@ -12,8 +9,9 @@ import com.ddz.common.redis.RedisClient;
  * 
  */
 public class UserGameData {
-	private static Jedis jedis = RedisClient.getJedis();
-	private static ShardedJedis shardedJedis = RedisClient.getShardedJedis();
+	// private static Jedis jedis = RedisClient.getJedis();
+	// private static ShardedJedis shardedJedis = RedisClient.getShardedJedis();
+	private static final JedisUtil jedis = new JedisUtil();
 	private static final byte[] USER_GAME = "user_game".getBytes();
 
 	private UserGameData() {
@@ -28,7 +26,7 @@ public class UserGameData {
 	 */
 	public static void hset(String userId, String gameId) {
 		try {
-			jedis.hset(USER_GAME, userId.getBytes(), gameId.getBytes());
+			jedis.setHSet(USER_GAME, userId.getBytes(), gameId.getBytes());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -43,7 +41,7 @@ public class UserGameData {
 	public static String hget(String userId) {
 		byte[] rpop = null;
 		try {
-			rpop = shardedJedis.hget(USER_GAME, userId.getBytes());
+			rpop = jedis.getHSet(USER_GAME, userId.getBytes());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -65,7 +63,7 @@ public class UserGameData {
 	 * @return
 	 */
 	public static Boolean exists(String userId) {
-		return shardedJedis.hexists(USER_GAME, userId.getBytes());
+		return jedis.existsHSet(USER_GAME, userId.getBytes());
 	}
 
 	/**
@@ -74,6 +72,6 @@ public class UserGameData {
 	 * @param userId
 	 */
 	public static void hdel(String userId) {
-		jedis.hdel(USER_GAME, userId.getBytes());
+		jedis.delHSet(USER_GAME, userId.getBytes());
 	}
 }

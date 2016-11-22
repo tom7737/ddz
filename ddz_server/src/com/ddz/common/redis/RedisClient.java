@@ -15,10 +15,10 @@ public class RedisClient {
 	private static JedisPool jedisPool;// 非切片连接池
 	private static ShardedJedis shardedJedis;// 切片额客户端连接
 	private static ShardedJedisPool shardedJedisPool;// 切片连接池
-	//radis服务器ip
+	// radis服务器ip
 	private static final String JEDIS_POOL = "127.0.0.1";
-	//radis服务器端口号
-	private static final Integer JEDIS_PORT =6379;
+	// radis服务器端口号
+	private static final Integer JEDIS_PORT = 6379;
 
 	public static Jedis getJedis() {
 		return jedis;
@@ -52,9 +52,9 @@ public class RedisClient {
 	private static void initialPool() {
 		// 池基本配置
 		JedisPoolConfig config = new JedisPoolConfig();
-		config.setMaxActive(20);
+		// config.setMaxActive(20);
 		config.setMaxIdle(5);
-		config.setMaxWait(10000l);
+		// config.setMaxWait(10000l);
 		config.setTestOnBorrow(false);
 		jedisPool = new JedisPool(config, JEDIS_POOL, JEDIS_PORT);
 	}
@@ -65,9 +65,9 @@ public class RedisClient {
 	private static void initialShardedPool() {
 		// 池基本配置
 		JedisPoolConfig config = new JedisPoolConfig();
-		config.setMaxActive(20);
+		// config.setMaxActive(20);
 		config.setMaxIdle(5);
-		config.setMaxWait(10000l);
+		// config.setMaxWait(10000l);
 		config.setTestOnBorrow(false);
 		// slave链接
 		List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>();

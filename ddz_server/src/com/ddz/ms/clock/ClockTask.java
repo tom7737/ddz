@@ -23,7 +23,7 @@ public class ClockTask {
 	public static final String URL_DDZ_NOTOUTPOKER = "/ddz/notOutPoker";
 	public static final String METHOD_GET = "GET";
 	public static final String METHOD_POST = "POST";
-	private Integer timeDelay = 5000;// FIXME 延时时间，默认30秒.测试时为5秒
+	private Integer timeDelay = 2000;// FIXME 延时时间，默认30秒.测试时为5秒
 
 	private String address = ADDRESS;// 执行任务的接口服务器地址
 
