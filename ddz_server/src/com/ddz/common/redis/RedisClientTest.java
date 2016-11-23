@@ -12,7 +12,11 @@ import redis.clients.jedis.JedisShardInfo;
 import redis.clients.jedis.ShardedJedis;
 import redis.clients.jedis.ShardedJedisPool;
 import redis.clients.jedis.SortingParams;
-
+/**
+ * redis测试用
+ * @author admin
+ *
+ */
 public class RedisClientTest {
 	private Jedis jedis;// 非切片客户端连接
 	private JedisPool jedisPool;// 非切片连接池

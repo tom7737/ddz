@@ -11,6 +11,9 @@ import com.mongodb.MongoException;
 import com.mongodb.util.JSON;
  
 /**
+ * 
+ * 测试用
+ * 
  * <b>function:</b>MongoDB 简单示例
  * @author hoojo
  * @createDate 2011-5-24 下午02:42:29

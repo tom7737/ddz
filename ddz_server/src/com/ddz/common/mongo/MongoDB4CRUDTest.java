@@ -18,6 +18,8 @@ import com.mongodb.Mongo;
 import com.mongodb.MongoException;
 
 /**
+ * 测试用
+ * 
  * <b>function:</b>实现MongoDB的CRUD操作
  * 
  * @author hoojo

@@ -4,9 +4,9 @@ import com.ddz.ms.rdata.UserAutoData;
 import com.ddz.ms.util.HttpRequest;
 
 /**
- * 时钟线程抽象类.每个实现类中实现具体要做的事情
+ * 闹钟线程类.正在执行闹钟任务的类
  * 
- * TODO 1、自动退出桌子。2、自动不叫地主3、自动出牌
+ *  1、自动退出桌子。2、自动不叫地主3、自动出牌
  * 
  * @author admin
  * 
@@ -47,7 +47,9 @@ public class ClockThread extends Thread {
 			System.out.println("已经不需要我这个闹钟工作了");
 		}
 	}
-
+	/**
+	 * 对系统本身发送Post请求从而执行任务
+	 */
 	private void someThing() {
 		try {
 			HttpRequest.sendPost(task.getFullUrl(), task.getParmsString());

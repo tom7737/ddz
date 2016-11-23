@@ -2,7 +2,12 @@ package com.ddz.ms.clock;
 
 import java.util.HashMap;
 import java.util.Map;
-
+/**
+ * 闹钟任务控制类--创建闹钟，停止闹钟
+ * 
+ * @author admin
+ *
+ */
 public class ClockTaskControl {
 
 	public static Map<String, ClockThread> map = new HashMap<String, ClockThread>();

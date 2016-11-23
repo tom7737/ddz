@@ -30,7 +30,7 @@ public class InitListener implements ServletContextListener {
 		System.out.println("初始消息队列服务");
 		Thread t = new Thread(new MsgThread());
 		try {
-			Thread.sleep(500);
+			Thread.sleep(500);//等待系统完成其他初始化工作
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -113,6 +113,7 @@ public class InitListener implements ServletContextListener {
 			}
 			PrintWriter out = outs.get(msg.getUserId());
 			if (out != null) {
+				//
 				out.println("event:" + msg.getEvent());
 				out.flush();
 				out.println("data: " + msg.getData() + "\n");

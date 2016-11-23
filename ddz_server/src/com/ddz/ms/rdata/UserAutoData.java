@@ -3,7 +3,7 @@ package com.ddz.ms.rdata;
 import com.ddz.common.redis.JedisUtil;
 
 /**
- * 用户的托管状态
+ * 用户的托管状态--记录用户的托管次数。当托管次数大于等于2时，则为已托管状态
  * 
  * @author admin
  * 

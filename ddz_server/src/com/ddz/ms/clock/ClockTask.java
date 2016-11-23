@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 闹钟任务类
+ * 闹钟任务实体类
  * 
  * @author admin
  * 

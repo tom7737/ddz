@@ -15,7 +15,11 @@ import redis.clients.jedis.ScanParams;
 import redis.clients.jedis.ScanResult;
 import redis.clients.jedis.ShardedJedis;
 import redis.clients.jedis.ShardedJedisPool;
-
+/**
+ * Jedis帮助类，系统中操作redis的方法都由此类提供
+ * @author admin
+ *
+ */
 public class JedisUtil {
 	private static Logger logger = LoggerFactory.getLogger(JedisUtil.class);
 	// radis服务器ip

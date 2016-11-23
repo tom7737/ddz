@@ -20,7 +20,11 @@ import com.mongodb.MapReduceOutput;
 import com.mongodb.Mongo;  
 import com.mongodb.QueryBuilder;  
 import com.mongodb.WriteConcern;  
-  
+ /**
+  * mongoDB测试类
+  * @author admin
+  *
+  */
 public class TestCase {  
        //DBCursor cursor = coll.find(condition).addOption(Bytes.QUERYOPTION_NOTIMEOUT);//设置游标不要超时  
   
