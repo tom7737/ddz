@@ -36,6 +36,7 @@ public class ChatAnnotation {
             new CopyOnWriteArraySet<>();  
   
     private final String nickname;  
+    
     private Session session;  
   
     public ChatAnnotation() {  
