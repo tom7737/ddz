@@ -38,7 +38,7 @@ import com.mongodb.DBObject;
 
 /**
  * 斗地主控制类* FIXME 换桌4ok，计时器5ok，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，
- * 消息队列添加延时功能2ok ,断线重连8，监听断线7（使用WebSocket）,托管6
+ * 消息队列添加延时功能2ok ,断线重连8，监听断线7（使用WebSocket）,托管6ok
  * 
  * @author tom
  * @date 2016-10-23
