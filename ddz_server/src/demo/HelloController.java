@@ -14,7 +14,11 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.WriteResult;
-
+/**
+ * 测试用
+ * @author admin
+ *
+ */
 public class HelloController extends Controller {
 
 	public void index() {

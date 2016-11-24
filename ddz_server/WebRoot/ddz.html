@@ -15,12 +15,14 @@
 	<textarea rows="20" cols="100" id="msg_text" readonly="readonly"></textarea>
 	<br /> 本家：
 	<span id="userId"></span>
+	<a href="#" onclick="auto();" id="auto">托管</a>
 	<br />
 	<div id="pokers"></div>
 	<br>
 	<br>
-	<button id="btn_start" onclick="start();">准备</button>
+	<button id="btn_start" onclick="ready();">准备</button>
 	<button id="btn_out" onclick="out();" style="display:none;">退出</button>
+	<button id="btn_change" onclick="changeTable();" style="display:none;">换桌</button>
 	<br>
 	<br>
 	<div id="selectLand" style="display:none;">
@@ -42,16 +44,16 @@
 		var nextUserRole;//下家角色
 		// 		var pokers;//手牌
 		var notOutCount = 0;//记录不出的次数，2次不出后，则下家必须出牌
+		//初始连接
 		function start() {
-			$("#btn_start").hide();
-			$("#btn_out").show();
 			var es = new EventSource("ddz/start?userId=" + userId);
 			es.onmessage = function(event) {
 				alert(event.data);
 				// 				document.getElementById('push').innerHTML = event.data;
 			};
-			es.addEventListener('start', function(event) {//发牌成功后的回调函数
-				$("#btn_out").hide();
+			es.addEventListener('ready', function(event) {//发牌成功后的回调函数
+				// 				$("#btn_out").hide();
+				$("#btn_change").hide();
 				var d = jQuery.parseJSON(event.data);
 				//三个玩家信息
 				lastUserId = d.lastUserId;
@@ -71,6 +73,7 @@
 				}
 			});
 			es.addEventListener('selectLand', function(event) {//叫地主后的回调函数
+				$("button").hide();
 				var d = jQuery.parseJSON(event.data);
 				if (d.status == 1) {
 					// 显示信息
@@ -86,7 +89,7 @@
 					// 显示信息
 					msg("叫地主：玩家" + d.callPalyer + "叫了" + d.landv + "分");
 					msg("游戏开始:" + d.landId + "是地主");
-					msg("地主牌是：")
+					msg("地主牌是：" + d.lands)
 					msg("下一个行动玩家是：" + d.actionPlayerId);
 					//显示三位玩家的身份
 					if (d.landId == userId) {
@@ -118,12 +121,13 @@
 				}
 			});
 			es.addEventListener('outPoker', function(event) {//出牌后的回调函数
+				$("button").hide();
 				var d = jQuery.parseJSON(event.data);
 				// 显示信息
-				if (d.outPoker == null||""==d.outPoker){
+				if (d.outPoker == null || "" == d.outPoker) {
 					msg("出牌：" + d.outPokerMan + "不出");
 					notOutCount++;
-				}else{
+				} else {
 					msg("出牌：" + d.outPokerMan + "出了" + d.outPoker);
 					notOutCount = 0;
 				}
@@ -131,29 +135,113 @@
 					msg("下一个行动玩家是：" + d.actionPlayerId);
 					//如果行动人为本人，则显示出牌按钮 
 					if (d.actionPlayerId == userId) {//如果先手玩家是本人，则显示出牌按钮，附加地主牌
-						if(notOutCount<2){
+						if (notOutCount < 2) {
 							showOutDiv();
-						}else{
+						} else {
 							showOutDiv2();
 						}
 					}
 				}
+				if (d.outPokerMan == userId) {
+					for ( var i = 0; i < d.outPoker.length; i++) {
+						$("#poker" + d.outPoker[i] + "").remove();// 删除手牌中出掉的牌
+					}
+				}
+
 			});
 			es.addEventListener('gameOver', function(event) {//出牌后的回调函数
 				var d = jQuery.parseJSON(event.data);
-				// 显示信息
-				msg("游戏结束：" + (d.result == 0 ? "地主胜利" : "农民胜利"));
-				msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
-						+ (userRole == d.result ? "赢了" : "输了"));
+				if (d.result == null) {
+					msg("游戏结束：无人叫地主，平局");
+				} else {
+					// 显示信息
+					msg("游戏结束：" + (d.result == 0 ? "地主胜利" : "农民胜利"));
+					msg("你是" + (userRole == 0 ? "地主" : "农民") + ",你"
+							+ (userRole == d.result ? "赢了" : "输了"));
+				}
+				$("button").hide();
+				$("#btn_start").show();
+				$("#btn_change").show();
+				//初始托管按钮
+				$("#auto").attr("onclick", "auto();");
+				$("#auto").text("托管");
+			});
+			es.addEventListener("auto", function(event) {//托管回调函数
+				var d = jQuery.parseJSON(event.data);
+				msg("托管：" + d.userId + "进行了托管");
+				if (userId == d.userId) {
+					$("#auto").attr("onclick", "cancelAuto();");
+					$("#auto").text("取消托管");
+				}
+			});
+			es.addEventListener("cancelAuto", function(event) {//取消托管回调函数
+				var d = jQuery.parseJSON(event.data);
+				msg("托管：" + d.userId + "取消了托管");
+				if (userId == d.userId) {
+					$("#auto").attr("onclick", "auto();");
+					$("#auto").text("托管");
+				}
+			});
+		}
+		//取消托管
+		function cancelAuto() {
+			$.ajax({
+				url : "/ddz_server/ddz/cancelAuto?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+				}
+			});
+		}
+		//托管
+		function auto() {
+			$.ajax({
+				url : "/ddz_server/ddz/auto?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+				}
+			});
+		}
+		//换桌
+		function changeTable() {
+			$.ajax({
+				url : "/ddz_server/ddz/changeTable?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+					$("button").hide();
+					$("#btn_change").show();
+				}
+			});
+		}
+		//准备
+		function ready() {
+			$.ajax({
+				url : "/ddz_server/ddz/ready?userId=" + userId,
+				type : "post",
+				success : function(data) {
+					if (data != null && data != "") {
+						msg(data);
+						return;
+					}
+					$("button").hide();
+					$("#btn_change").show();
+				}
 			});
 		}
 		//显示叫分按钮
 		function showSelectLand(v) {
-			$("#selectLand").hide();
-			$("#btn_selectLand0").hide();
-			$("#btn_selectLand1").hide();
-			$("#btn_selectLand2").hide();
-			$("#btn_selectLand3").hide();
+			$("button").hide();
 			if (v >= 3 || v < 0)
 				return;
 			$("#selectLand").show();
@@ -168,12 +256,14 @@
 		}
 		//显示出牌按钮和不出按钮
 		function showOutDiv() {
+			$("button").hide();
 			$("#out_div").show();
 			$("#btn_out_poker").show();
 			$("#btn_not_out_poker").show();
 		}
 		//只显示出牌按钮
 		function showOutDiv2() {
+			$("button").hide();
 			$("#out_div").show();
 			$("#btn_out_poker").show();
 			$("#btn_not_out_poker").hide();
@@ -199,13 +289,11 @@
 						msg(data);
 						return;
 					}
-					$("#out_div").hide();
-					for ( var i = 0; i < pokers.length; i++) {
-						$("#poker" + pokers[i] + "").remove();// 删除手牌中出掉的牌
-					}
+					$("button").hide();
 				}
 			});
 		}
+		//不出
 		function notOutPoker() {
 			$.ajax({
 				url : "/ddz_server/ddz/notOutPoker?userId=" + userId,
@@ -237,7 +325,7 @@
 				type : "post",
 				success : function() {
 					msg("退出");
-					$("#btn_out").hide();
+					$("button").hide();
 					$("#btn_start").show();
 				}
 			});
@@ -294,6 +382,9 @@
 		}
 		// 		var x = idToPoker(31);
 		// 		alert(x.color +x.name);
+		//初始连接
+		start();
+		$("#userId").text(userId);
 	</script>
 </body>
 </html>

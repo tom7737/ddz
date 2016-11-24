@@ -8,7 +8,7 @@
     <welcome-file>ddz.html</welcome-file>
   </welcome-file-list>
   <listener>
-  	<listener-class>com.ddz.ms.init.InitListener</listener-class>
+  	<listener-class>com.ddz.ms.msg.MsgListener</listener-class>
   </listener>
   <filter>
   	<filter-name>jfinal</filter-name>
@@ -20,6 +20,6 @@
   </filter>
   <filter-mapping>
   <filter-name>jfinal</filter-name>
-  <url-pattern>/*</url-pattern>
+  <url-pattern>/ddz/*</url-pattern>
   </filter-mapping>
 </web-app>

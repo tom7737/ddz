@@ -8,151 +8,68 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.ddz.ms.clock.ClockTask;
+import com.ddz.ms.clock.ClockTaskControl;
 import com.ddz.ms.factory.PokerFactory;
-import com.ddz.ms.init.InitListener;
-import com.ddz.ms.init.RedisMsgQuene;
-import com.ddz.ms.model.Msg;
+import com.ddz.ms.model.Game;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
-import com.ddz.ms.model.TableOld;
-import com.ddz.ms.service.TableService;
-import com.ddz.ms.service.impl.TableServiceImpl;
-import com.ddz.ms.util.IsBigger;
+import com.ddz.ms.msg.Msg;
+import com.ddz.ms.msg.MsgListener;
+import com.ddz.ms.msg.MsgPrintWriter;
+import com.ddz.ms.rdata.RedisMsgQuene;
+import com.ddz.ms.rdata.UserAutoData;
+import com.ddz.ms.rdata.UserGameData;
+import com.ddz.ms.service.GameService;
+import com.ddz.ms.service.SeatService;
+import com.ddz.ms.service.impl.GameServiceImpl;
+import com.ddz.ms.service.impl.SeatServiceImpl;
 import com.ddz.ms.util.PokerType;
 import com.jfinal.core.Controller;
 import com.jfinal.kit.JsonKit;
 import com.jfinal.plugin.activerecord.Record;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
 
 /**
- * 桌子控制类*
+ * 斗地主控制类* FIXME 换桌4ok，计时器5ok，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，
+ * 消息队列添加延时功能2ok ,断线重连8，监听断线7（使用WebSocket）,托管6ok
  * 
  * @author tom
  * @date 2016-10-23
  */
 public class DdzController extends Controller {
-	
-	private TableService tableService = new TableServiceImpl();
+
+	private GameService gameService = new GameServiceImpl();
+
+	private SeatService seatService = new SeatServiceImpl();
 	/**
-	 * 注册
+	 * 牌局集合---因为游戏中牌局的操作最多，暂时先放入内存中
+	 */
+	private static Map<String, Game> games = new HashMap<String, Game>();
+
+	/**
+	 * 注册接口
 	 */
 	public void reg() {
 
 	}
 
 	/**
-	 * 桌子集合
-	 */
-	private static Map<String, TableOld> tables = new HashMap<String, TableOld>();
-	/**
-	 * 用户编号集合，模拟凑桌人数
-	 */
-	private static List<String> userIds = new LinkedList<String>();
-	/**
-	 * 当前桌子的编号
-	 */
-	private String tableKey;
-	/**
-	 * 保存用户和桌子的关系
-	 */
-	private static Map<String, String> user_table = new HashMap<String, String>();
-
-	/**
-	 * 玩家上桌，如果凑齐3人，则创建新桌子。
+	 * 发牌
 	 * 
-	 * @param userId
+	 * @param game
+	 * @return
 	 */
-	private void inTable(String userId) {
-		if (userIds.size() >= 2) {
-			// 取出userIds的值，并把userIds初始化
-			String userId1 = userIds.get(0);
-			String userId2 = userIds.get(1);
-			userIds = new LinkedList<String>();
-			// 初始化桌子
-			TableOld table = new TableOld();
-			Player p1 = new Player();
-			p1.setName(userId1);
-			Player p2 = new Player();
-			p2.setName(userId2);
-			Player p3 = new Player();
-			p3.setName(userId);
-			table.inTable(p1);
-			table.inTable(p2);
-			table.inTable(p3);
-			tableKey = UUID.randomUUID().toString();
-			tables.put(tableKey, table);
-			// 添加用户和桌子的关系
-			user_table.put(userId, tableKey);
-			user_table.put(userId1, tableKey);
-			user_table.put(userId2, tableKey);
-			// 启动线程执行后续的工作
-			Thread handler = new Thread(new HandlerThread());
-			handler.start();
-		} else {
-			userIds.add(userId);
-		}
-	}
-
-	/**
-	 * 处理牌桌初始化工作
-	 * 
-	 * @author tom
-	 * @date 2016-10-22
-	 */
-	private class HandlerThread implements Runnable {
-		@Override
-		public void run() {
-			System.out.println(tableKey);
-			TableOld table = tables.get(tableKey);
-			List<Player> players = randomPoker(table);
-			//************
-			table.setTableId(tableKey);
-			tableService.add(table);
-			//************
-			// 通知前端
-			for (Player player : players) {
-				// startMsg.put(player.getName(), tableKey);
-				Record re = new Record();
-				String[] userIds = new String[3];
-				int i = 0;
-				int myindex = -1;
-				// 获取手牌，当前出牌者，标记用户的位置，便于区分上家及下家
-				re.set("pokers", Poker.pokerFormatLtoI(player.getPokers()));
-				for (Player p2 : players) {
-					userIds[i++] = p2.getName();
-					if (player.getName().equals(p2.getName())) {
-						myindex = i - 1;
-					}
-				}
-				if (myindex == 0) {
-					re.set("lastUserId", userIds[2]);
-					re.set("nextUserId", userIds[1]);
-				} else if (myindex == 1) {
-					re.set("lastUserId", userIds[0]);
-					re.set("nextUserId", userIds[2]);
-				} else if (myindex == 2) {
-					re.set("lastUserId", userIds[1]);
-					re.set("nextUserId", userIds[0]);
-				}
-				re.set("actionPlayerId", table.getActionPlayerId());
-				re.set("userId", player.getName());
-				String json = JsonKit.toJson(re);
-				// 添加到消息队列
-				RedisMsgQuene.push(new Msg(player.getName(), Msg.START, json));
-			}
-		}
-	}
-
-	private List<Player> randomPoker(TableOld table) {
+	private List<Player> randomPoker(Game game) {
 		List<Poker> pokers = PokerFactory.getInstance();
-		List<Player> players = table.getPlayers();
+		List<Player> players = game.getPlayers();
 		// 发牌
 		// 打乱顺序
 		Collections.shuffle(pokers);
@@ -170,30 +87,84 @@ public class DdzController extends Controller {
 		lands.add(iterator.next());
 		lands.add(iterator.next());
 		lands.add(iterator.next());
-		table.setLands(lands);
-		// table.show();
+		game.setLands(lands);
 		// 随机一个用户先叫牌
-		table.randomActionPlayerId();
-		// 初始叫牌记录和当前叫牌人
-		table.setLandvs(new HashMap<String, Integer>());
-		table.setCallPalyer(null);
+		game.randomActionPlayerId();
+		// 初始叫牌记录
+		game.setLandvLog(new ArrayList<Map<String, Integer>>());
 		// 状态改为叫地主中
-		table.setStatus(1);
+		game.setStatus(1);
 		return players;
 	}
 
 	/**
-	 * 准备
+	 * 准备接口
+	 */
+	public void ready() {
+		String userId = this.getPara("userId");
+		// 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
+		seatService.inSeat(userId);
+		seatService.ready(userId);
+		DBObject dbObject = seatService.getByUserId(userId);
+		if (dbObject != null && dbObject.get("tableNum") != null) {
+			Integer tableNum = Integer.valueOf(dbObject.get("tableNum")
+					.toString());
+			DBCursor dbCursor = seatService.getByTableNum(tableNum);
+			List<String> userIds = new ArrayList<String>();
+			while (dbCursor.hasNext()) {// 判断桌上玩家是否都已准备，如果有未准备的则直接返回
+				DBObject next = dbCursor.next();
+				if (next.get("userId") == null) {
+					renderNull();
+					return;
+				}
+				Object isReady = next.get("isReady");
+				if (isReady == null || !(Boolean) isReady) {
+					renderNull();
+					return;
+				}
+				userIds.add(next.get("userId").toString());
+			}
+			if (userIds.size() != 3) {
+				renderNull();
+				return;
+			}
+			// 初始化这一局游戏
+			Game game = new Game();
+			game.setTableNum(tableNum);
+			String gameId = UUID.randomUUID().toString();
+			game.setGameId(gameId);
+			for (String string : userIds) {
+				Player player = new Player();
+				player.setUserId(string);
+				game.inGame(player);
+				// 添加用户和桌子的关系
+				// user_game.put(string, gameId);
+				UserGameData.hset(string, gameId);
+				// 初始化用户的托管状态
+				UserAutoData.init(string);
+			}
+			games.put(gameId, game);
+			// 启动线程执行后续的工作
+			Thread handler = new Thread(new HandlerThread(gameId));
+			handler.start();
+		}
+
+		renderNull();
+		return;
+	}
+
+	/**
+	 * 建立连接接口
 	 */
 	public void start() {
 		String userId = this.getPara("userId");
 		if (userId == null)
 			userId = UUID.randomUUID().toString();
-		if (userIds.contains(userId) || user_table.containsKey(userId)) {
+		if (UserGameData.exists(userId)/* user_game.containsKey(userId) */) {
 			renderNull();
 			return;
 		}
-		inTable(userId);
 		// 初始化HTML5消息推送器
 		HttpServletResponse res = this.getResponse();
 		res.setContentType("text/event-stream");
@@ -204,7 +175,7 @@ public class DdzController extends Controller {
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
-		InitListener.setPrintWriter(userId, out);
+		MsgPrintWriter.setPrintWriter(userId, out);
 
 		while (true) {
 			try {
@@ -216,7 +187,7 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 叫地主
+	 * 叫地主接口
 	 */
 	public void selectLand() {
 		// 获取用户ID，叫分值
@@ -227,85 +198,144 @@ public class DdzController extends Controller {
 			return;
 		}
 		// 验证用户ID是否为当前行动的用户
-		String tableKey = user_table.get(userId);
-		TableOld table = tables.get(tableKey);
-		if (!table.getActionPlayerId().equals(userId)) {
+		String gameId = UserGameData.hget(userId);// user_game.get(userId);
+		Game game = games.get(gameId);
+		if (!game.getActionPlayerId().equals(userId)) {
 			renderText("不是当前行动的玩家");
 			return;
 		}
+		// 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
 		// 记录叫分人和叫分值
-		Map<String, Integer> landvs = table.getLandvs();
-		landvs.put(userId, landv);
-		table.setCallPalyer(userId);
-		table.setInitPoints(landv);
+		List<Map<String, Integer>> landvLog = game.getLandvLog();
+		Map<String, Integer> landvs_temp = new HashMap<String, Integer>();
+		landvs_temp.put(userId, landv);
+		landvLog.add(landvs_temp);
+		game.setInitPoints(landv);
 		// 如果当前用户叫了3分，则直接开始
-		if (table.getInitPoints() == 3) {// 结束叫牌（开始游戏）
-			startGame(table);
-		} else if (table.getLandvs().size() == 3) {// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
-			if (table.getInitPoints() > 0) {// 结束叫牌（开始游戏）
-				startGame(table);
+		if (game.getInitPoints() == 3) {// 结束叫牌（开始游戏）
+			startGame(game);
+		} else if (game.getLandvLog().size() == 3) {// 如果这是第三个玩家--且三个玩家中有一个叫过分，则开始游戏。如果三个玩家都未叫分，则重新发牌
+			if (game.getInitPoints() > 0) {// 结束叫牌（开始游戏）
+				startGame(game);
 			} else {
+				game.setActionPlayerId(null);// 行动人制空
+				game.setStatus(0);// 牌桌状态改为空闲
+				// 另起线程完成游戏结束的工作
+				Thread t = new Thread(new GameOverThread(gameId));
+				t.start();
 				// 行动玩家置空
-				table.setActionPlayerId(null);
-				// 设置牌桌编号
-				this.tableKey = user_table.get(userId);
+				// game.setActionPlayerId(null);
 				// 重新发牌
-				Thread handler = new Thread(new AgainRandomPokerThread());
-				handler.start();
+				// Thread handler = new Thread(new
+				// AgainRandomPokerThread(gameId));
+				// handler.start();
+
 			}
 		} else {
 			// 行动人按顺序延后
-			table.nextActionPlayerId();
+			game.nextActionPlayerId();
 		}
-//		System.out.println("通知前端");
+		// System.out.println("通知前端");
 		// 通知前端
 		Record re = new Record();
-		re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
-		re.set("callPalyer", table.getCallPalyer());// 当前叫地主的玩家ID
-		re.set("landv", table.getLandvs().get(table.getCallPalyer()));// 叫分值
-		re.set("initPoints", table.getInitPoints());// 低分
-		re.set("status", table.getStatus());// 状态
-		// 开始游戏
+		re.set("actionPlayerId", game.getActionPlayerId());// 下一个行动者
+		re.set("callPalyer", userId);// 当前叫地主的玩家ID
+		re.set("landv", landv);// 叫分值
+		re.set("initPoints", game.getInitPoints());// 底分
+		re.set("status", game.getStatus());// 状态
 		// 判断桌子的状态是否为游戏中,显示地主牌和谁是地主
-		if (table.getStatus() == 2) {
-			re.set("lands", Poker.pokerFormatLtoI(table.getLands()));// 地主牌
-			re.set("landId", table.getLandId());// 地主ID
+		if (game.getStatus() == 2) {// 开始游戏
+			re.set("lands", Poker.pokerFormatLtoI(game.getLands()));// 地主牌
+			re.set("landId", game.getLandId());// 地主ID
 		}
 		String json = JsonKit.toJson(re);
-		for (Player player : table.getPlayers()) {
-			RedisMsgQuene
-					.push(new Msg(player.getName(), Msg.SELECT_LAND, json));
+		for (Player player : game.getPlayers()) {
+			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.SELECT_LAND,
+					json));
 		}
+		if (game.getStatus() == 2) {
+			setOutPokerClock(game);
+		} else {
+			setSelectLandClock(game);
+		}
+
 		renderNull();
 	}
 
 	/**
-	 * 开始打牌的准备工作
+	 * 为下一个叫地主的玩家设置一个闹钟任务
 	 * 
-	 * @param table
+	 * @param game
+	 */
+	private void setSelectLandClock(Game game) {
+		if (game.getActionPlayerId() == null)// 行动玩家为空则代表重新发牌，不需要设置闹钟任务了
+			return;
+		Map<String, String> parms = new HashMap<String, String>();
+		parms.put("userId", game.getActionPlayerId());
+		parms.put("landv", "0");
+		ClockTaskControl.createClockTask(game.getActionPlayerId(),
+				new ClockTask(ClockTask.URL_DDZ_SELECTLAND, parms));
+	}
+
+	/**
+	 * 为下一个出牌的玩家设置一个闹钟任务
+	 * 
+	 * @param game
+	 */
+	private void setOutPokerClock(Game game) {
+		if (game.getActionPlayerId() == null)// 行动玩家为空则代表游戏结束，不需要设置闹钟任务了
+			return;
+		Map<String, String> parms = new HashMap<String, String>();
+		parms.put("userId", game.getActionPlayerId());
+		if (isMustOutPoker(game.getOutPokerLog())) {// 如果不是必须要出牌则不出
+			String outPoker = null;
+			for (Player player : game.getPlayers()) {
+				if (player.getUserId().equals(game.getActionPlayerId())) {
+					Poker poker = player.getPokers().get(
+							player.getPokers().size() - 1);// 选取最后一张牌（最小的牌）
+					outPoker = String.valueOf(poker.getId());
+					break;
+				}
+			}
+			parms.put("pokers", outPoker);
+			ClockTaskControl.createClockTask(game.getActionPlayerId(),
+					new ClockTask(ClockTask.URL_DDZ_OUTPOKER, parms));
+		} else {
+			ClockTaskControl.createClockTask(game.getActionPlayerId(),
+					new ClockTask(ClockTask.URL_DDZ_NOTOUTPOKER, parms));
+		}
+
+	}
+
+	/**
+	 * 开始出牌前的准备工作
+	 * 
+	 * @param game
 	 * @param landId
 	 */
-	private void startGame(TableOld table) {
+	private void startGame(Game game) {
 		// 叫分最高的成为地主
 		String landId = null;
-		Set<String> landvs_userIds = table.getLandvs().keySet();
-		for (String landvs_userId : landvs_userIds) {
-			if (table.getInitPoints() == table.getLandvs().get(landvs_userId)) {
+		List<Map<String, Integer>> landvs = game.getLandvLog();
+		for (Map<String, Integer> map : landvs) {
+			String landvs_userId = map.keySet().iterator().next();
+			if (game.getInitPoints() == map.get(landvs_userId)) {
 				landId = landvs_userId;
 				break;
 			}
 		}
 		// 状态改为游戏中
-		table.setStatus(2);
+		game.setStatus(2);
 		// 设置地主ID
-		table.setLandId(landId);
+		game.setLandId(landId);
 		// 地主成为当前行动人
-		table.setActionPlayerId(landId);
+		game.setActionPlayerId(landId);
 		// 地主牌发给地主
-		List<Poker> lands = table.getLands();
-		List<Player> players = table.getPlayers();
+		List<Poker> lands = game.getLands();
+		List<Player> players = game.getPlayers();
 		for (Player player : players) {
-			if (player.getName().equals(landId)) {
+			if (player.getUserId().equals(landId)) {
 				player.setIsland(true);
 				// 将地主牌发给地主
 				player.getPokers().addAll(lands);
@@ -322,27 +352,7 @@ public class DdzController extends Controller {
 	}
 
 	/**
-	 * 处理重新发牌工作，主要是等叫地主信息发出后再重新发牌
-	 * 
-	 * @author tom
-	 * @date 2016-11-3
-	 */
-	private class AgainRandomPokerThread implements Runnable {
-		@Override
-		public void run() {
-			try {
-				Thread.sleep(2000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			System.out.print("重新发牌");
-			Thread handler = new Thread(new HandlerThread());
-			handler.start();
-		}
-	}
-
-	/**
-	 * 出牌
+	 * 出牌接口
 	 */
 	public void outPoker() {
 		String userId = this.getPara("userId");
@@ -353,34 +363,49 @@ public class DdzController extends Controller {
 		}
 		pokerIds = Poker.sortById(pokerIds);// 排序，方便后续操作
 		List<Integer> l_pokerIds = Arrays.asList(pokerIds);
-		// List<Poker> pokers = Poker.pokerFormatItoL(pokerIds);
-		// System.out.println(pokers);
 		// 判断是否为当前行动人
-		String tableKey = user_table.get(userId);
-		TableOld table = tables.get(tableKey);
-		if (!table.getActionPlayerId().equals(userId)) {
+		String gameId = UserGameData.hget(userId);// user_game.get(userId);
+		Game game = games.get(gameId);
+		if (!game.getActionPlayerId().equals(userId)) {
 			renderText("不是当前行动的玩家");
 			return;
 		}
 		String pokerType = PokerType.pokerType(Poker.pokerFormatItoL(pokerIds));
 		// 判断出牌是否符合规则
-		if (PokerType.ERROR.equals(pokerType)) {
-			renderText("出的牌不符合规则");
-			return;
+		// if (PokerType.ERROR.equals(pokerType)) {
+		// renderText("出的牌不符合规则");
+		// return;
+		// }
+		// if (!IsBigger.isBigger(game.getOutPokerLog(), pokerIds)) {
+		// renderText("出的牌不符合规则");
+		// return;
+		// }
+
+		List<Player> players = game.getPlayers();
+		// 验证要出的牌是否在手牌中
+		for (Player player : players) {
+			if (player.getUserId().equals(userId)) {// 找到出牌者
+				List<Integer> ltoI = Arrays.asList(Poker.pokerFormatLtoI(player
+						.getPokers()));// 手牌
+				for (Integer poker : l_pokerIds) {
+					if (!ltoI.contains(poker)) {
+						renderText("没有相应的手牌");// 如果循环对比下来没有找到对应的手牌，则说明手牌中没有这张要出的牌
+						return;
+					}
+				}
+				break;
+			}
 		}
-		if (!IsBigger.isBigger(table.getOutPokerLog(), pokerIds)) {
-			renderText("出的牌不符合规则");
-			return;
-		}
-		// 判断是不是炸弹，如果是炸弹则分数翻倍
+		// FIXME 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
+		// 判断是不是炸弹，如果是则炸弹数加一
 		if (PokerType.ZHADAN.equals(pokerType)
 				|| PokerType.WANGZHA.equals(pokerType)) {
-			table.setInitPoints(table.getInitPoints() * 2);
+			game.incBombCount();
 		}
 		// 将出的牌从手牌中转移到弃牌区
-		List<Player> players = table.getPlayers();
 		for (Player player : players) {
-			if (player.getName().equals(userId)) {
+			if (player.getUserId().equals(userId)) {
 				List<Poker> pokers_temp = player.getPokers();
 				List<Poker> delpokers = new ArrayList<Poker>();// 需要删除的手牌
 				for (Poker poker : pokers_temp) {
@@ -388,35 +413,32 @@ public class DdzController extends Controller {
 						delpokers.add(poker);
 					}
 				}
-				table.getFolds().addAll(delpokers);// 将要出的牌加入弃牌区
+				game.getFolds().addAll(delpokers);// 将要出的牌加入弃牌区
 				pokers_temp.removeAll(delpokers);// 将要出的牌从手牌中删除
 				break;
 			}
 		}
-		// players.get(0).getPokers();
 		// 记录出牌结果
-		List<Map<String, Integer[]>> outPokerLog = table.getOutPokerLog();
+		List<Map<String, Integer[]>> outPokerLog = game.getOutPokerLog();
 		Map<String, Integer[]> userId_outPoker = new HashMap<String, Integer[]>();
 		userId_outPoker.put(userId, pokerIds);
 		outPokerLog.add(userId_outPoker);
 		// 顺延行动人
-		table.nextActionPlayerId();
+		game.nextActionPlayerId();
 		// 判断是否已将牌出完，出完则结束游戏
 		for (Player player : players) {
-			if (player.getName().equals(userId)
+			if (player.getUserId().equals(userId)
 					&& player.getPokers().size() == 0) {
-				table.setStatus(0);// 牌桌状态改为空闲
-				table.setActionPlayerId(null);// 行动人制空
-				// 记录游戏结果
+				game.setActionPlayerId(null);// 行动人制空
+				game.setStatus(0);// 牌桌状态改为空闲
+				// 设置游戏结果
 				if (player.isIsland()) {// 判断出完牌的这个人是不是地主
-					table.setResults(0);
+					game.setResults(0);
 				} else {
-					table.setResults(1);
+					game.setResults(1);
 				}
-				// 设置牌桌编号
-				this.tableKey = tableKey;
-				// 另起线程通知前端
-				Thread t = new Thread(new GameOverThread());
+				// 另起线程完成游戏结束的工作
+				Thread t = new Thread(new GameOverThread(gameId));
 				t.start();
 				break;
 			}
@@ -426,28 +448,64 @@ public class DdzController extends Controller {
 		Record re = new Record();
 		re.set("outPokerMan", userId);// 出牌人
 		re.set("outPoker", pokerIds);// 出的牌
-		re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
-		re.set("status", table.getStatus());// 牌桌状态
+		re.set("actionPlayerId", game.getActionPlayerId());// 下一个行动者
+		re.set("status", game.getStatus());// 牌桌状态
 		String json = JsonKit.toJson(re);
-		for (Player player : table.getPlayers()) {
-			// outPokerMsg.put(player.getName(), tableKey);
-			RedisMsgQuene.push(new Msg(player.getName(), Msg.OUT_POKER, json));
+		for (Player player : game.getPlayers()) {
+			// outPokerMsg.put(player.getName(), gameId);
+			RedisMsgQuene
+					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
+		setOutPokerClock(game);
 		renderNull();
 	}
 
 	/**
-	 * 不出
+	 * 不出接口
 	 */
 	public void notOutPoker() {
 		String userId = this.getPara("userId");
-		String tableKey = user_table.get(userId);
-		TableOld table = tables.get(tableKey);
-		List<Map<String, Integer[]>> outPokerLog = table.getOutPokerLog();
+		String gameId = UserGameData.hget(userId);// user_game.get(userId);
+		Game game = games.get(gameId);
+		List<Map<String, Integer[]>> outPokerLog = game.getOutPokerLog();
 		// 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
-		if (outPokerLog == null || outPokerLog.size() == 0) {
+		if (isMustOutPoker(outPokerLog)) {
 			renderText("你必须出牌");
 			return;
+		}
+		// FIXME 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
+		// 记录出牌结果
+		Map<String, Integer[]> userId_outPoker = new HashMap<String, Integer[]>();
+		userId_outPoker.put(userId, null);
+		outPokerLog.add(userId_outPoker);
+		// 顺延行动人
+		game.nextActionPlayerId();
+		// 通知前端
+		Record re = new Record();
+		re.set("outPokerMan", userId);// 出牌人
+		re.set("outPoker", null);// 出的牌
+		re.set("actionPlayerId", game.getActionPlayerId());// 下一个行动者
+		re.set("status", game.getStatus());// 牌桌状态
+		String json = JsonKit.toJson(re);
+		for (Player player : game.getPlayers()) {
+			RedisMsgQuene
+					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
+		}
+		setOutPokerClock(game);
+		renderNull();
+	}
+
+	/**
+	 * 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
+	 * 
+	 * @param outPokerLog
+	 * @return
+	 */
+	private boolean isMustOutPoker(List<Map<String, Integer[]>> outPokerLog) {
+		boolean mustOutPoker = false;
+		if (outPokerLog == null || outPokerLog.size() == 0) {
+			mustOutPoker = true;
 		} else if (outPokerLog.size() > 2) {
 			Map<String, Integer[]> map = outPokerLog
 					.get(outPokerLog.size() - 1);
@@ -456,27 +514,99 @@ public class DdzController extends Controller {
 					.get(outPokerLog.size() - 2);
 			Integer[] integers2 = map2.get(map2.keySet().iterator().next());
 			if (integers == null && integers2 == null) {
-				renderText("你必须出牌");
-				return;
+				mustOutPoker = true;
 			}
 		}
+		return mustOutPoker;
+	}
 
-		// 记录出牌结果
-		Map<String, Integer[]> userId_outPoker = new HashMap<String, Integer[]>();
-		userId_outPoker.put(userId, null);
-		outPokerLog.add(userId_outPoker);
-		// 顺延行动人
-		table.nextActionPlayerId();
+	/**
+	 * 离开桌子接口
+	 */
+	public void outTable() {
+		// 用户在牌局中时不能退出
+		String userId = this.getPara("userId");
+		String gameId = UserGameData.hget(userId);// user_game.get(userId);
+		if (gameId != null) {
+			renderNull();
+			return;
+		}
+		seatService.exit(userId);
+		System.out.println(userId + "退出");
+		// 通知客户端
+		renderNull();
+	}
+
+	/**
+	 * 换桌接口
+	 */
+	public void changeTable() {
+		// 用户在牌局中时不能换桌
+		String userId = this.getPara("userId");
+		String gameId = UserGameData.hget(userId);// user_game.get(userId);
+		if (gameId != null) {
+			renderNull();
+			return;
+		}
+		// 关闭用户的其他闹钟任务
+		ClockTaskControl.stopClockTask(userId);
+		seatService.changeSeat(userId);
+		// 通知客户端
+		renderNull();
+	}
+
+	/**
+	 * 托管接口
+	 */
+	public void auto() {
+		String userId = this.getPara("userId");
+		// 将用户设置为托管状态
+		UserAutoData.setAuto(userId);
+		// 如果用户正在行动中，则设置闹钟完成行动
+		String gameId = UserGameData.hget(userId);
+		if (gameId == null) {
+			renderText("不在游戏中");
+			return;
+		}
+		Game game = games.get(gameId);
+		if (game.getActionPlayerId().equals(userId)) {// 判断是否为当前行动人
+			Integer status = game.getStatus();
+			if (status == 1) {
+				setSelectLandClock(game);
+			} else if (status == 2) {
+				setOutPokerClock(game);
+			}
+		}
 		// 通知前端
 		Record re = new Record();
-		re.set("outPokerMan", userId);// 出牌人
-		re.set("outPoker", null);// 出的牌
-		re.set("actionPlayerId", table.getActionPlayerId());// 下一个行动者
-		re.set("status", table.getStatus());// 牌桌状态
+		re.set("userId", userId);// 托管的用户ID
 		String json = JsonKit.toJson(re);
-		for (Player player : table.getPlayers()) {
-			// outPokerMsg.put(player.getName(), tableKey);
-			RedisMsgQuene.push(new Msg(player.getName(), Msg.OUT_POKER, json));
+		for (Player player : game.getPlayers()) {
+			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.AUTO, json));
+		}
+		renderNull();
+	}
+
+	/**
+	 * 取消托管接口
+	 */
+	public void cancelAuto() {
+		String userId = this.getPara("userId");
+		String gameId = UserGameData.hget(userId);
+		if (gameId == null) {
+			renderText("不在游戏中");
+			return;
+		}
+		Game game = games.get(gameId);
+		// 初始化用户的托管状态
+		UserAutoData.init(userId);
+		//  通知前端
+		Record re = new Record();
+		re.set("userId", userId);// 托管的用户ID
+		String json = JsonKit.toJson(re);
+		for (Player player : game.getPlayers()) {
+			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.CANCEL_AUTO,
+					json));
 		}
 		renderNull();
 	}
@@ -488,6 +618,12 @@ public class DdzController extends Controller {
 	 * @date 2016-11-3
 	 */
 	private class GameOverThread implements Runnable {
+		String gameId = null;
+
+		public GameOverThread(String gameId) {
+			this.gameId = gameId;
+		}
+
 		@Override
 		public void run() {
 			try {
@@ -496,32 +632,119 @@ public class DdzController extends Controller {
 				e.printStackTrace();
 			}
 			System.out.print("游戏结束");
+			Game game = games.get(gameId);
+			List<Player> players = game.getPlayers();
+			// 取消玩家的准备状态
+			for (Player player : players) {
+				seatService.cancelReady(player.getUserId());
+				// 解除用户和桌子的关系
+				UserGameData.hdel(player.getUserId());
+				// 解除用户的托管状态
+				UserAutoData.hdel(player.getUserId());
+			}
+			// 保存对局记录
+			gameService.saveLog(game);
 			// 通知前端
-			TableOld table = tables.get(tableKey);
-			int result = table.getResults();
+			Integer result = game.getResults();
 			Record re = new Record();
 			re.set("result", result);// 结果
+			re.set("initPoints", game.getInitPoints());// 底分
+			re.set("bombCount", game.getBombCount());// 炸弹数
 			String json = JsonKit.toJson(re);
-			for (Player player : table.getPlayers()) {
-				RedisMsgQuene.push(new Msg(player.getName(), Msg.GAME_OVER,
+			for (Player player : game.getPlayers()) {
+				RedisMsgQuene.push(new Msg(player.getUserId(), Msg.GAME_OVER,
 						json));
+			}
+			// 从牌局列表中删除牌局
+			games.remove(gameId);
+			// 添加定时器，30秒内未准备则退出牌桌
+			for (Player player : players) {
+				Map<String, String> parms2 = new HashMap<String, String>();
+				parms2.put("userId", player.getUserId());
+				ClockTaskControl.createClockTask(player.getUserId(),
+						new ClockTask(ClockTask.URL_DDZ_OUTTABLE, parms2));
 			}
 		}
 	}
 
 	/**
-	 * 离开桌子
+	 * 处理重新发牌工作，主要是等叫地主信息发出后再重新发牌
+	 * 
+	 * @author tom
+	 * @date 2016-11-3
 	 */
-	public void outTable() {
-		// TODO 正在游戏时不能退出
-		String userId = this.getPara("userId");
-		if (userIds.contains(userId)) {
-			// 从桌上退出
-			userIds.remove(userId);
-			System.out.println(userId + "退出");
-		}
-		// 通知客户端
+	private class AgainRandomPokerThread implements Runnable {
+		String gameId = null;
 
-		renderNull();
+		public AgainRandomPokerThread(String gameId) {
+			this.gameId = gameId;
+		}
+
+		@Override
+		public void run() {
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			System.out.print("重新发牌");
+			Thread handler = new Thread(new HandlerThread(gameId));
+			handler.start();
+		}
+	}
+
+	/**
+	 * 处理牌桌初始化工作
+	 * 
+	 * @author tom
+	 * @date 2016-10-22
+	 */
+	private class HandlerThread implements Runnable {
+
+		String gameId = null;
+
+		public HandlerThread(String gameId) {
+			this.gameId = gameId;
+		}
+
+		@Override
+		public void run() {
+			System.out.println(gameId);
+			Game game = games.get(gameId);
+			List<Player> players = randomPoker(game);
+			// 通知前端
+			for (Player player : players) {
+				Record re = new Record();
+				String[] userIds = new String[3];
+				int i = 0;
+				int myindex = -1;
+				// 获取手牌，当前出牌者，标记用户的位置，便于区分上家及下家
+				re.set("pokers", Poker.pokerFormatLtoI(player.getPokers()));
+				for (Player p2 : players) {
+					userIds[i++] = p2.getUserId();
+					if (player.getUserId().equals(p2.getUserId())) {
+						myindex = i - 1;
+					}
+				}
+				if (myindex == 0) {
+					re.set("lastUserId", userIds[2]);
+					re.set("nextUserId", userIds[1]);
+				} else if (myindex == 1) {
+					re.set("lastUserId", userIds[0]);
+					re.set("nextUserId", userIds[2]);
+				} else if (myindex == 2) {
+					re.set("lastUserId", userIds[1]);
+					re.set("nextUserId", userIds[0]);
+				}
+				re.set("actionPlayerId", game.getActionPlayerId());
+				re.set("userId", player.getUserId());
+				String json = JsonKit.toJson(re);
+				// 添加到消息队列
+				RedisMsgQuene
+						.push(new Msg(player.getUserId(), Msg.READY, json));
+			}
+			// 为下一个叫地主的玩家设置一个闹钟任务
+			setSelectLandClock(game);
+		}
 	}
 }
