@@ -38,8 +38,8 @@ public class DdzConfig extends JFinalConfig {
 		SeatService seatService = new SeatServiceImpl();
 		seatService.initSeat();
 		// 初始Action
-		me.add("/hello", HelloController.class);
-		me.add("/ddz", DdzController.class);
+//		me.add("/hello", HelloController.class);
+//		me.add("/ddz", DdzController.class);
 	}
 
 	@Override

@@ -10,7 +10,14 @@ import java.util.Map;
  * 
  */
 public class WsRequest {
-
+	public static final String READY = "ready";
+	public static final String SELECTLAND = "selectLand";
+	public static final String OUTPOKER = "outPoker";
+	public static final String NOTOUTPOKER = "notOutPoker";
+	public static final String CANCELAUTO = "cancelAuto";
+	public static final String AUTO = "auto";
+	public static final String CHANGETABLE = "changeTable";
+	public static final String OUTTABLE = "outTable";
 	private String method;
 	private Map<String, String> parms;
 

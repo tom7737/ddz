@@ -108,15 +108,33 @@ public class DdzAnnotation {
 	@OnMessage
 	public void incoming(String message) {
 		System.out.println("incoming");
-		// Never trust the client
-		// TODO: 过滤输入的内容
 		System.out.println(message);
 		WsRequest req = new WsRequest(message);
 		switch (req.getMethod()) {
-		case Msg.READY:
+		case WsRequest.READY:
 			ready();
 			break;
-
+		case WsRequest.SELECTLAND:
+			selectLand(Integer.valueOf(req.getParm("landv")));
+			break;
+		case WsRequest.OUTPOKER:
+			outPoker(req.getParm("pokers"));
+			break;
+		case WsRequest.NOTOUTPOKER:
+			notOutPoker();
+			break;
+		case WsRequest.CANCELAUTO:
+			cancelAuto();
+			break;
+		case WsRequest.AUTO:
+			auto();
+			break;
+		case WsRequest.CHANGETABLE:
+			changeTable();
+			break;
+		case WsRequest.OUTTABLE:
+			outTable();
+			break;
 		default:
 			break;
 		}
@@ -220,10 +238,8 @@ public class DdzAnnotation {
 	/**
 	 * 叫地主接口
 	 */
-	public void selectLand() {
+	public void selectLand(Integer landv) {
 		// 获取用户ID，叫分值
-		String userId = null;// this.getPara("userId");
-		Integer landv = null;// this.getParaToInt("landv");
 		if (landv < 0 || landv > 3) {
 			// renderNull();
 			return;
@@ -385,9 +401,8 @@ public class DdzAnnotation {
 	/**
 	 * 出牌接口
 	 */
-	public void outPoker() {
-		String userId = null;// this.getPara("userId");
-		String[] pokerIds_temp = null;// this.getPara("pokers").split(",");
+	public void outPoker(String pokers) {
+		String[] pokerIds_temp = pokers.split(",");
 		Integer[] pokerIds = new Integer[pokerIds_temp.length];
 		for (int i = 0; i < pokerIds_temp.length; i++) {
 			pokerIds[i] = Integer.valueOf(pokerIds_temp[i]);
@@ -496,7 +511,6 @@ public class DdzAnnotation {
 	 * 不出接口
 	 */
 	public void notOutPoker() {
-		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		Game game = games.get(gameId);
 		List<Map<String, Integer[]>> outPokerLog = game.getOutPokerLog();
@@ -557,7 +571,6 @@ public class DdzAnnotation {
 	 */
 	public void outTable() {
 		// 用户在牌局中时不能退出
-		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		if (gameId != null) {
 			// renderNull();
@@ -566,7 +579,6 @@ public class DdzAnnotation {
 		seatService.exit(userId);
 		System.out.println(userId + "退出");
 		// FIXME 通知客户端
-		// renderNull();
 	}
 
 	/**
@@ -574,7 +586,6 @@ public class DdzAnnotation {
 	 */
 	public void changeTable() {
 		// 用户在牌局中时不能换桌
-		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		if (gameId != null) {
 			// renderNull();
@@ -584,14 +595,12 @@ public class DdzAnnotation {
 		ClockTaskControl.stopClockTask(userId);
 		seatService.changeSeat(userId);
 		// FIXME 通知客户端
-		// renderNull();
 	}
 
 	/**
 	 * 托管接口
 	 */
 	public void auto() {
-		String userId = null;// this.getPara("userId");
 		// 将用户设置为托管状态
 		UserAutoData.setAuto(userId);
 		// 如果用户正在行动中，则设置闹钟完成行动
@@ -616,14 +625,12 @@ public class DdzAnnotation {
 		for (Player player : game.getPlayers()) {
 			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.AUTO, json));
 		}
-		// renderNull();
 	}
 
 	/**
 	 * 取消托管接口
 	 */
 	public void cancelAuto() {
-		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);
 		if (gameId == null) {
 			// renderText("不在游戏中");
@@ -640,7 +647,6 @@ public class DdzAnnotation {
 			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.CANCEL_AUTO,
 					json));
 		}
-		// renderNull();
 	}
 
 	/**
