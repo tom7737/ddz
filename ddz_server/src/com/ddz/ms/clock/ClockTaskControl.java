@@ -2,11 +2,12 @@ package com.ddz.ms.clock;
 
 import java.util.HashMap;
 import java.util.Map;
+
 /**
  * 闹钟任务控制类--创建闹钟，停止闹钟
  * 
  * @author admin
- *
+ * 
  */
 public class ClockTaskControl {
 
@@ -34,19 +35,20 @@ public class ClockTaskControl {
 	 * 创建一个闹钟任务
 	 */
 	public static void createClockTask(String userId, ClockTask task) {
-		stopClockTask(userId);// 先停止已有的闹钟
-		task.setUserId(userId);
-		ClockThread t = new ClockThread(task);
-		map.put(userId, t);
-		t.start();
+		//FIXME 测试时先不使用闹钟
+		// stopClockTask(userId);// 先停止已有的闹钟
+		// task.setUserId(userId);
+		// ClockThread t = new ClockThread(task);
+		// map.put(userId, t);
+		// t.start();
 	}
 
 	/**
 	 * 停止一个闹钟任务
 	 */
 	public static void stopClockTask(String userId) {
-		if (map.containsKey(userId))
-			map.get(userId).notNeedRun();
+		// if (map.containsKey(userId))
+		// map.get(userId).notNeedRun();
 	}
 
 }

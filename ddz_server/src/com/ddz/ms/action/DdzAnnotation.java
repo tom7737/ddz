@@ -10,9 +10,17 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.OnOpen;
+import javax.websocket.Session;
+import javax.websocket.server.PathParam;
+import javax.websocket.server.ServerEndpoint;
 
 import com.ddz.ms.clock.ClockTask;
 import com.ddz.ms.clock.ClockTaskControl;
@@ -20,9 +28,10 @@ import com.ddz.ms.factory.PokerFactory;
 import com.ddz.ms.model.Game;
 import com.ddz.ms.model.Player;
 import com.ddz.ms.model.Poker;
+import com.ddz.ms.model.WsRequest;
 import com.ddz.ms.msg.Msg;
 import com.ddz.ms.msg.MsgListener;
-import com.ddz.ms.msg.MsgPrintWriter;
+import com.ddz.ms.msg.WsMsgPrintWriter;
 import com.ddz.ms.rdata.RedisMsgQuene;
 import com.ddz.ms.rdata.UserAutoData;
 import com.ddz.ms.rdata.UserGameData;
@@ -31,20 +40,29 @@ import com.ddz.ms.service.SeatService;
 import com.ddz.ms.service.impl.GameServiceImpl;
 import com.ddz.ms.service.impl.SeatServiceImpl;
 import com.ddz.ms.util.PokerType;
-import com.jfinal.core.Controller;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.jfinal.kit.JsonKit;
 import com.jfinal.plugin.activerecord.Record;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.util.JSON;
 
 /**
+ * 
+ * WebSocket
+ * 
  * 斗地主控制类* FIXME 换桌4ok，计时器5ok，实时记录叫地主和出牌日志3no暂时不做(牵扯到牌局信息的保存)，redis代替map存储数据1ok，
  * 消息队列添加延时功能2ok ,断线重连8，监听断线7（使用WebSocket）,托管6ok
  * 
  * @author tom
- * @date 2016-10-23
+ * @date 2016-11-24
  */
-public class DdzController extends Controller {
+@ServerEndpoint(value = "/sdz/{userId}")
+public class DdzAnnotation {
+
+	private String userId;// 用户ID
 
 	private GameService gameService = new GameServiceImpl();
 
@@ -53,6 +71,56 @@ public class DdzController extends Controller {
 	 * 牌局集合---因为游戏中牌局的操作最多，暂时先放入内存中
 	 */
 	private static Map<String, Game> games = new HashMap<String, Game>();
+
+	/**
+	 * 建立连接接口
+	 */
+	@OnOpen
+	public void start(@PathParam("userId") String userId, Session session) {
+		System.out.println("start");
+		if (userId == null)
+			userId = UUID.randomUUID().toString();
+		if (UserGameData.exists(userId)) {
+			return;
+		}
+		this.userId = userId;
+		System.out.println(userId);
+		// 初始化HTML5WebSocket消息推送器
+		WsMsgPrintWriter.set(userId, session);
+	}
+
+	/**
+	 * 关闭连接接口
+	 */
+	@OnClose
+	public void end() {
+		System.out.println("end");
+		WsMsgPrintWriter.remove(userId);
+		// FIXME 判断用户是否还在游戏中...
+	}
+
+	@OnError
+	public void onError(Throwable t) throws Throwable {
+		System.out.println("onError");
+		System.out.println("Chat Error: " + t.toString());
+	}
+
+	@OnMessage
+	public void incoming(String message) {
+		System.out.println("incoming");
+		// Never trust the client
+		// TODO: 过滤输入的内容
+		System.out.println(message);
+		WsRequest req = new WsRequest(message);
+		switch (req.getMethod()) {
+		case Msg.READY:
+			ready();
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	/**
 	 * 注册接口
@@ -101,7 +169,7 @@ public class DdzController extends Controller {
 	 * 准备接口
 	 */
 	public void ready() {
-		String userId = this.getPara("userId");
+		System.out.println("准备接口");
 		// 关闭用户的其他闹钟任务
 		ClockTaskControl.stopClockTask(userId);
 		seatService.inSeat(userId);
@@ -115,18 +183,15 @@ public class DdzController extends Controller {
 			while (dbCursor.hasNext()) {// 判断桌上玩家是否都已准备，如果有未准备的则直接返回
 				DBObject next = dbCursor.next();
 				if (next.get("userId") == null) {
-					renderNull();
 					return;
 				}
 				Object isReady = next.get("isReady");
 				if (isReady == null || !(Boolean) isReady) {
-					renderNull();
 					return;
 				}
 				userIds.add(next.get("userId").toString());
 			}
 			if (userIds.size() != 3) {
-				renderNull();
 				return;
 			}
 			// 初始化这一局游戏
@@ -149,41 +214,7 @@ public class DdzController extends Controller {
 			Thread handler = new Thread(new HandlerThread(gameId));
 			handler.start();
 		}
-
-		renderNull();
 		return;
-	}
-
-	/**
-	 * 建立连接接口
-	 */
-	public void start() {
-		String userId = this.getPara("userId");
-		if (userId == null)
-			userId = UUID.randomUUID().toString();
-		if (UserGameData.exists(userId)/* user_game.containsKey(userId) */) {
-			renderNull();
-			return;
-		}
-		// 初始化HTML5消息推送器
-		HttpServletResponse res = this.getResponse();
-		res.setContentType("text/event-stream");
-		res.setCharacterEncoding("UTF-8");
-		PrintWriter out = null;
-		try {
-			out = res.getWriter();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-		MsgPrintWriter.setPrintWriter(userId, out);
-
-		while (true) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
 	}
 
 	/**
@@ -191,17 +222,17 @@ public class DdzController extends Controller {
 	 */
 	public void selectLand() {
 		// 获取用户ID，叫分值
-		String userId = this.getPara("userId");
-		Integer landv = this.getParaToInt("landv");
+		String userId = null;// this.getPara("userId");
+		Integer landv = null;// this.getParaToInt("landv");
 		if (landv < 0 || landv > 3) {
-			renderNull();
+			// renderNull();
 			return;
 		}
 		// 验证用户ID是否为当前行动的用户
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		Game game = games.get(gameId);
 		if (!game.getActionPlayerId().equals(userId)) {
-			renderText("不是当前行动的玩家");
+			// renderText("不是当前行动的玩家");
 			return;
 		}
 		// 关闭用户的其他闹钟任务
@@ -260,7 +291,7 @@ public class DdzController extends Controller {
 			setSelectLandClock(game);
 		}
 
-		renderNull();
+		// renderNull();
 	}
 
 	/**
@@ -355,8 +386,8 @@ public class DdzController extends Controller {
 	 * 出牌接口
 	 */
 	public void outPoker() {
-		String userId = this.getPara("userId");
-		String[] pokerIds_temp = this.getPara("pokers").split(",");
+		String userId = null;// this.getPara("userId");
+		String[] pokerIds_temp = null;// this.getPara("pokers").split(",");
 		Integer[] pokerIds = new Integer[pokerIds_temp.length];
 		for (int i = 0; i < pokerIds_temp.length; i++) {
 			pokerIds[i] = Integer.valueOf(pokerIds_temp[i]);
@@ -367,7 +398,7 @@ public class DdzController extends Controller {
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		Game game = games.get(gameId);
 		if (!game.getActionPlayerId().equals(userId)) {
-			renderText("不是当前行动的玩家");
+			// renderText("不是当前行动的玩家");
 			return;
 		}
 		String pokerType = PokerType.pokerType(Poker.pokerFormatItoL(pokerIds));
@@ -389,7 +420,8 @@ public class DdzController extends Controller {
 						.getPokers()));// 手牌
 				for (Integer poker : l_pokerIds) {
 					if (!ltoI.contains(poker)) {
-						renderText("没有相应的手牌");// 如果循环对比下来没有找到对应的手牌，则说明手牌中没有这张要出的牌
+						// renderText("没有相应的手牌");//
+						// 如果循环对比下来没有找到对应的手牌，则说明手牌中没有这张要出的牌
 						return;
 					}
 				}
@@ -457,20 +489,20 @@ public class DdzController extends Controller {
 					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
 		setOutPokerClock(game);
-		renderNull();
+		// renderNull();
 	}
 
 	/**
 	 * 不出接口
 	 */
 	public void notOutPoker() {
-		String userId = this.getPara("userId");
+		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		Game game = games.get(gameId);
 		List<Map<String, Integer[]>> outPokerLog = game.getOutPokerLog();
 		// 判断是否必须得出牌（上家下家都不出，或是第一个出牌的。必须出牌）
 		if (isMustOutPoker(outPokerLog)) {
-			renderText("你必须出牌");
+			// renderText("你必须出牌");
 			return;
 		}
 		// FIXME 关闭用户的其他闹钟任务
@@ -493,7 +525,7 @@ public class DdzController extends Controller {
 					.push(new Msg(player.getUserId(), Msg.OUT_POKER, json));
 		}
 		setOutPokerClock(game);
-		renderNull();
+		// renderNull();
 	}
 
 	/**
@@ -525,16 +557,16 @@ public class DdzController extends Controller {
 	 */
 	public void outTable() {
 		// 用户在牌局中时不能退出
-		String userId = this.getPara("userId");
+		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		if (gameId != null) {
-			renderNull();
+			// renderNull();
 			return;
 		}
 		seatService.exit(userId);
 		System.out.println(userId + "退出");
-		// 通知客户端
-		renderNull();
+		// FIXME 通知客户端
+		// renderNull();
 	}
 
 	/**
@@ -542,30 +574,30 @@ public class DdzController extends Controller {
 	 */
 	public void changeTable() {
 		// 用户在牌局中时不能换桌
-		String userId = this.getPara("userId");
+		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);// user_game.get(userId);
 		if (gameId != null) {
-			renderNull();
+			// renderNull();
 			return;
 		}
 		// 关闭用户的其他闹钟任务
 		ClockTaskControl.stopClockTask(userId);
 		seatService.changeSeat(userId);
-		// 通知客户端
-		renderNull();
+		// FIXME 通知客户端
+		// renderNull();
 	}
 
 	/**
 	 * 托管接口
 	 */
 	public void auto() {
-		String userId = this.getPara("userId");
+		String userId = null;// this.getPara("userId");
 		// 将用户设置为托管状态
 		UserAutoData.setAuto(userId);
 		// 如果用户正在行动中，则设置闹钟完成行动
 		String gameId = UserGameData.hget(userId);
 		if (gameId == null) {
-			renderText("不在游戏中");
+			// renderText("不在游戏中");
 			return;
 		}
 		Game game = games.get(gameId);
@@ -584,23 +616,23 @@ public class DdzController extends Controller {
 		for (Player player : game.getPlayers()) {
 			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.AUTO, json));
 		}
-		renderNull();
+		// renderNull();
 	}
 
 	/**
 	 * 取消托管接口
 	 */
 	public void cancelAuto() {
-		String userId = this.getPara("userId");
+		String userId = null;// this.getPara("userId");
 		String gameId = UserGameData.hget(userId);
 		if (gameId == null) {
-			renderText("不在游戏中");
+			// renderText("不在游戏中");
 			return;
 		}
 		Game game = games.get(gameId);
 		// 初始化用户的托管状态
 		UserAutoData.init(userId);
-		//  通知前端
+		// 通知前端
 		Record re = new Record();
 		re.set("userId", userId);// 托管的用户ID
 		String json = JsonKit.toJson(re);
@@ -608,7 +640,7 @@ public class DdzController extends Controller {
 			RedisMsgQuene.push(new Msg(player.getUserId(), Msg.CANCEL_AUTO,
 					json));
 		}
-		renderNull();
+		// renderNull();
 	}
 
 	/**

@@ -1,4 +1,4 @@
-package com.ddz.ms.model;
+package com.ddz.ms.msg;
 
 import java.io.Serializable;
 

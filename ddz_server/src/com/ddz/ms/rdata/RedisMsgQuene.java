@@ -1,7 +1,7 @@
 package com.ddz.ms.rdata;
 
 import com.ddz.common.redis.JedisUtil;
-import com.ddz.ms.model.Msg;
+import com.ddz.ms.msg.Msg;
 import com.ddz.ms.util.ObjectUtil;
 
 /**
